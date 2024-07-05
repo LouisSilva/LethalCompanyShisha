@@ -27,6 +27,7 @@ public class ShishaConfig : SyncedInstance<ShishaConfig>
     public readonly ConfigEntry<float> WanderTimeMax;
     public readonly ConfigEntry<float> AmbientSfxTimerMin;
     public readonly ConfigEntry<float> AmbientSfxTimerMax;
+    public readonly ConfigEntry<bool> TimeInDayLeaveEnabled;
     public readonly ConfigEntry<bool> PoopBehaviourEnabled;
     public readonly ConfigEntry<float> PoopChance;
     
@@ -88,6 +89,13 @@ public class ShishaConfig : SyncedInstance<ShishaConfig>
             "Ambient Sfx Time Interval Maximum",
             30f,
             "The maximum time gap between any given ambient sound effect."
+        );
+        
+        TimeInDayLeaveEnabled = cfg.Bind(
+            "General",
+            "Leave At Night Time Enabled",
+            true,
+            "Toggles whether the Shisha will leave the map when it gets dark like other vanilla daytime entities."
         );
         
         PoopBehaviourEnabled = cfg.Bind(

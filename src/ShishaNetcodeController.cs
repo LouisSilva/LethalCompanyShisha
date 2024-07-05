@@ -13,6 +13,13 @@ public class ShishaNetcodeController : NetworkBehaviour
     public event Action<string, int, bool> OnChangeAnimationParameterBool;
     public event Action<string, NetworkObjectReference, int, int> OnSpawnShishaPoop;
     public event Action<string, int> OnPlayAmbientSfx;
+    public event Action<string> OnEnterDeathState;
+
+    [ClientRpc]
+    public void EnterDeathStateClientRpc(string receivedShishaId)
+    {
+        OnEnterDeathState?.Invoke(receivedShishaId);
+    }
 
     [ClientRpc]
     public void PlayAmbientSfxClientRpc(string receivedShishaId, int clipIndex)

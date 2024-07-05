@@ -1,9 +1,12 @@
 ﻿using System;
+using System.Collections;
 using BepInEx.Logging;
+using GameNetcodeStuff;
 using Unity.Netcode;
 using UnityEngine;
 using UnityEngine.AI;
 using Logger = BepInEx.Logging.Logger;
+using Object = UnityEngine.Object;
 using Random = UnityEngine.Random;
 
 namespace LethalCompanyShisha;
@@ -132,6 +135,53 @@ public class ShishaServer : EnemyAI
             if (_numberOfAmbientAudioClips == 0) return; 
             _netcodeController.PlayAmbientSfxClientRpc(_shishaId, Random.Range(0, _numberOfAmbientAudioClips));
         }
+    }
+
+    public override void DaytimeEnemyLeave()
+    {
+        if (!IsServer) return;
+        StartCoroutine(LeaveWhenNoOneIsLooking(10f));
+    }
+
+    private IEnumerator LeaveWhenNoOneIsLooking(float checkIntervalTimer)
+    {
+        while (true)
+        {
+            if (WhoIsLookingAtAloe() != null)
+            {
+                _netcodeController.EnterDeathStateClientRpc(_shishaId);
+                KillEnemyServerRpc(false);
+                Destroy(gameObject);
+                yield break;
+            }
+
+            yield return new WaitForSeconds(checkIntervalTimer);
+        }
+    }
+    
+    private PlayerControllerB WhoIsLookingAtAloe(Object ignorePlayer = null)
+    {
+        PlayerControllerB closestPlayer = null;
+        float closestDistance = float.MaxValue;
+        bool isThereAPlayerToIgnore = ignorePlayer != null;
+
+        foreach (PlayerControllerB player in StartOfRound.Instance.allPlayerScripts)
+        {
+            if (player.isPlayerDead || !player.isInsideFactory) continue;
+            if (isThereAPlayerToIgnore)
+            {
+                if (ignorePlayer == player) continue;
+            }
+            
+            if (!player.HasLineOfSightToPosition(transform.position, 50f)) continue;
+            float distance = Vector3.Distance(transform.position, player.transform.position);
+            if (!(distance < closestDistance)) continue;
+            
+            closestPlayer = player;
+            closestDistance = distance;
+        }
+
+        return closestPlayer;
     }
     
     private void MoveWithAcceleration()

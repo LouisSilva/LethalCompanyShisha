@@ -72,6 +72,7 @@ public class ShishaClient : MonoBehaviour
         _netcodeController.OnChangeAnimationParameterBool += HandleChangeAnimationParameterBool;
         _netcodeController.OnSpawnShishaPoop += HandleSpawnShishaPoop;
         _netcodeController.OnPlayAmbientSfx += HandlePlayAmbientSfx;
+        _netcodeController.OnEnterDeathState += HandleEnterDeathState;
     }
 
     private void OnDisable()
@@ -84,6 +85,7 @@ public class ShishaClient : MonoBehaviour
         _netcodeController.OnChangeAnimationParameterBool -= HandleChangeAnimationParameterBool;
         _netcodeController.OnSpawnShishaPoop -= HandleSpawnShishaPoop;
         _netcodeController.OnPlayAmbientSfx -= HandlePlayAmbientSfx;
+        _netcodeController.OnEnterDeathState -= HandleEnterDeathState;
     }
 
     private void Start()
@@ -238,6 +240,12 @@ public class ShishaClient : MonoBehaviour
                 baseStateMachineBehaviour.Initialize(_netcodeController);
             }
         }
+    }
+
+    private void HandleEnterDeathState(string receivedShishaId)
+    {
+        if (_shishaId != receivedShishaId) return;
+        Destroy(gameObject);
     }
 
     private void HandleChangeAnimationParameterBool(string receivedShishaId, int animationId, bool value)
