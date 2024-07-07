@@ -1,5 +1,4 @@
-﻿using System;
-using BepInEx.Logging;
+﻿using BepInEx.Logging;
 using LethalCompanyShisha.CustomStateMachineBehaviours;
 using Unity.Netcode;
 using UnityEngine;

@@ -1,12 +1,11 @@
 ﻿using System;
 using System.Collections;
+using System.Linq;
 using BepInEx.Logging;
-using GameNetcodeStuff;
 using Unity.Netcode;
 using UnityEngine;
 using UnityEngine.AI;
 using Logger = BepInEx.Logging.Logger;
-using Object = UnityEngine.Object;
 using Random = UnityEngine.Random;
 
 namespace LethalCompanyShisha;
@@ -140,14 +139,16 @@ public class ShishaServer : EnemyAI
     public override void DaytimeEnemyLeave()
     {
         if (!IsServer) return;
+        if (!ShishaConfig.Instance.TimeInDayLeaveEnabled.Value) return;
         StartCoroutine(LeaveWhenNoOneIsLooking(10f));
+        base.DaytimeEnemyLeave();
     }
 
     private IEnumerator LeaveWhenNoOneIsLooking(float checkIntervalTimer)
     {
         while (true)
         {
-            if (WhoIsLookingAtAloe() != null)
+            if (!IsPlayerLookingAtShisha(90f, 80, 3f))
             {
                 _netcodeController.EnterDeathStateClientRpc(_shishaId);
                 KillEnemyServerRpc(false);
@@ -159,29 +160,18 @@ public class ShishaServer : EnemyAI
         }
     }
     
-    private PlayerControllerB WhoIsLookingAtAloe(Object ignorePlayer = null)
+    private bool IsPlayerLookingAtShisha(
+        float playerViewWidth = 30f, 
+        int playerViewRange = 60, 
+        float playerProximityAwareness = 3f)
     {
-        PlayerControllerB closestPlayer = null;
-        float closestDistance = float.MaxValue;
-        bool isThereAPlayerToIgnore = ignorePlayer != null;
-
-        foreach (PlayerControllerB player in StartOfRound.Instance.allPlayerScripts)
-        {
-            if (player.isPlayerDead || !player.isInsideFactory) continue;
-            if (isThereAPlayerToIgnore)
-            {
-                if (ignorePlayer == player) continue;
-            }
-            
-            if (!player.HasLineOfSightToPosition(transform.position, 50f)) continue;
-            float distance = Vector3.Distance(transform.position, player.transform.position);
-            if (!(distance < closestDistance)) continue;
-            
-            closestPlayer = player;
-            closestDistance = distance;
-        }
-
-        return closestPlayer;
+        return StartOfRound.Instance.allPlayerScripts.Where(player => !player.isPlayerDead)
+            .Any(player => player.HasLineOfSightToPosition(
+                transform.position + Vector3.up * 0.5f, 
+                playerViewWidth,
+                playerViewRange,
+                playerProximityAwareness
+                ));
     }
     
     private void MoveWithAcceleration()
