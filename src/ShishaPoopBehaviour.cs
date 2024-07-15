@@ -12,12 +12,9 @@ public class ShishaPoopBehaviour : PhysicsProp
     private ManualLogSource _mls;
     private string _poopId;
     
-#pragma warning disable 0649
     public MeshFilter meshFilter;
-    [Space(5f)]
     public Mesh[] poopMeshVariants;
     public Material[] poopMaterialVariants;
-#pragma warning restore 0649
 
     public int variantIndex;
 
@@ -160,7 +157,6 @@ public class ShishaPoopBehaviour : PhysicsProp
     private void LogDebug(string msg)
     {
         #if DEBUG
-        if (!IsOwner) return;
         _mls.LogInfo(msg);
         #endif
     }

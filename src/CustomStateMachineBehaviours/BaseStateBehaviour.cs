@@ -9,29 +9,24 @@ public class BaseStateMachineBehaviour : StateMachineBehaviour
     private ManualLogSource _mls;
     protected string ShishaId;
     
-    protected ShishaNetcodeController NetcodeController;
+    protected readonly NullableObject<ShishaNetcodeController> NetcodeController = new();
 
-    protected void OnEnable()
+    private bool _networkEventsSubscribed;
+
+    private void OnEnable()
     {
-        if (NetcodeController == null) return;
-        NetcodeController.OnSyncShishaIdentifier += HandleSyncShishaIdentifier;
+        SubscribeToNetworkEvents();
     }
 
-    protected void OnDisable()
+    private void OnDisable()
     {
-        if (NetcodeController == null) return;
-        NetcodeController.OnSyncShishaIdentifier -= HandleSyncShishaIdentifier;
+        UnsubscribeFromNetworkEvents();
     }
 
     public void Initialize(ShishaNetcodeController receivedNetcodeController)
     {
-        NetcodeController = receivedNetcodeController;
-        OnEnable();
-    }
-
-    public override void OnStateEnter(Animator animator, AnimatorStateInfo stateInfo, int layerIndex)
-    {
-        
+        NetcodeController.Value = receivedNetcodeController;
+        SubscribeToNetworkEvents();
     }
 
     private void HandleSyncShishaIdentifier(string receivedShishaId)
@@ -39,9 +34,23 @@ public class BaseStateMachineBehaviour : StateMachineBehaviour
         ShishaId = receivedShishaId;
         _mls?.Dispose();
         _mls = Logger.CreateLogSource(
-            $"Shisha Stationary State Behaviour {ShishaId}");
+            $"Shisha Animation State Behaviour {ShishaId}");
         
-        LogDebug("Successfully synced shisha identifier");
+        LogDebug("Successfully synced shisha identifier.");
+    }
+    
+    private void SubscribeToNetworkEvents()
+    {
+        if (_networkEventsSubscribed || !NetcodeController.IsNotNull) return;
+        NetcodeController.Value.OnSyncShishaIdentifier += HandleSyncShishaIdentifier;
+        _networkEventsSubscribed = true;
+    }
+
+    private void UnsubscribeFromNetworkEvents()
+    {
+        if (!_networkEventsSubscribed || !NetcodeController.IsNotNull) return;
+        NetcodeController.Value.OnSyncShishaIdentifier -= HandleSyncShishaIdentifier;
+        _networkEventsSubscribed = false;
     }
     
     protected void LogDebug(string msg)

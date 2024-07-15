@@ -29,7 +29,7 @@ public class ShishaPlugin : BaseUnityPlugin
 {
     public const string ModGuid = $"LCM_Shisha|{ModVersion}";
     private const string ModName = "Lethal Company Shisha Mod";
-    private const string ModVersion = "1.0.5";
+    private const string ModVersion = "1.0.7";
     
     private readonly Harmony _harmony = new(ModGuid);
 
@@ -72,6 +72,7 @@ public class ShishaPlugin : BaseUnityPlugin
     {
         _shishaEnemyType = Assets.MainAssetBundle.LoadAsset<EnemyType>("ShishaEnemyType");
         _shishaEnemyType.MaxCount = Mathf.Max(0, ShishaConfig.Instance.ShishaMaxAmount.Value);
+        _shishaEnemyType.PowerLevel = Mathf.Max(0, ShishaConfig.Instance.ShishaPowerLevel.Value);
         _shishaEnemyType.normalizedTimeInDayToLeave = ShishaConfig.Instance.TimeInDayLeaveEnabled.Value ? 0.6f : 1f;
         
         TerminalNode shishaTerminalNode = Assets.MainAssetBundle.LoadAsset<TerminalNode>("ShishaTerminalNode");
@@ -91,7 +92,7 @@ public class ShishaPlugin : BaseUnityPlugin
         Items.RegisterScrap(ShishaPoopItem, 0, Levels.LevelTypes.All);
     }
     
-    private void RegisterEnemyWithConfig(bool enemyEnabled, string configMoonRarity, EnemyType enemy, TerminalNode terminalNode, TerminalKeyword terminalKeyword) 
+    private static void RegisterEnemyWithConfig(bool enemyEnabled, string configMoonRarity, EnemyType enemy, TerminalNode terminalNode, TerminalKeyword terminalKeyword) 
     {
         if (enemyEnabled) 
         { 

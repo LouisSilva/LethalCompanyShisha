@@ -50,20 +50,19 @@ public class ShishaServer : EnemyAI
     private int _numberOfAmbientAudioClips;
 
     private bool _poopBehaviourEnabled;
+    private bool _networkEventsSubscribed;
 
     private Vector3 _idlePosition;
     private Vector3 _spawnPosition;
 
     private void OnEnable()
     {
-        if (_netcodeController == null) return;
-        _netcodeController.OnIdleCompleteStateBehaviourCallback += HandleIdleCompleteStateBehaviourCallback;
+        SubscribeToNetworkEvents();
     }
-
+    
     private void OnDisable()
     {
-        if (_netcodeController == null) return;
-        _netcodeController.OnIdleCompleteStateBehaviourCallback += HandleIdleCompleteStateBehaviourCallback;
+        UnsubscribeFromNetworkEvents();
     }
 
     public override void Start()
@@ -72,19 +71,20 @@ public class ShishaServer : EnemyAI
         if (!IsServer) return;
         
         _shishaId = Guid.NewGuid().ToString();
-        _mls = Logger.CreateLogSource($"Shisha Server {_shishaId}");
+        _mls = Logger.CreateLogSource($"{ShishaPlugin.ModGuid} | Shisha Server {_shishaId}");
 
         if (agent == null) agent = GetComponent<NavMeshAgent>();
         if (creatureAnimator == null) creatureAnimator = GetComponent<Animator>();
         _netcodeController = GetComponent<ShishaNetcodeController>();
-        if (_netcodeController != null) OnEnable();
+        if (_netcodeController != null) SubscribeToNetworkEvents();
         else
         {
-            _mls.LogError("Netcode controller is null, this is very bad");
+            _mls.LogError("Netcode controller is null, aborting spawn.");
+            Destroy(gameObject);
             return;
         }
         
-        Random.InitState(StartOfRound.Instance.randomMapSeed + _shishaId.GetHashCode());
+        Random.InitState(StartOfRound.Instance.randomMapSeed + _shishaId.GetHashCode() - thisEnemyIndex);
         _netcodeController.SyncShishaIdentifierClientRpc(_shishaId);
         InitializeConfigValues();
         
@@ -150,7 +150,6 @@ public class ShishaServer : EnemyAI
         {
             if (!IsPlayerLookingAtShisha(90f, 80, 3f))
             {
-                _netcodeController.EnterDeathStateClientRpc(_shishaId);
                 KillEnemyServerRpc(false);
                 Destroy(gameObject);
                 yield break;
@@ -194,7 +193,6 @@ public class ShishaServer : EnemyAI
                 _agentMaxAcceleration = maxAcceleration;
                 _wanderTimer = Random.Range(wanderTimeRange.x, wanderTimeRange.y);
                 
-                _netcodeController.ChangeAnimationParameterBoolClientRpc(_shishaId, ShishaClient.IsWalking, true);
                 StartSearch(anchoredWandering ? _spawnPosition : transform.position, roamSearchRoutine);
                 break;
             }
@@ -202,14 +200,12 @@ public class ShishaServer : EnemyAI
             case (int)States.Idle:
             {
                 agent.speed = 0f;
-                agent.acceleration = 0f;
+                agent.acceleration = 40f;
                 _agentMaxSpeed = 0f;
                 _agentMaxAcceleration = maxAcceleration;
                 moveTowardsDestination = false;
                 _idlePosition = transform.position;
                 
-                _netcodeController.ChangeAnimationParameterBoolClientRpc(_shishaId, ShishaClient.IsWalking, false);
-                _netcodeController.ChangeAnimationParameterBoolClientRpc(_shishaId, ShishaClient.IsRunning, false);
                 StopSearch(roamSearchRoutine);
                 PickRandomIdleAnimation();
                 
@@ -224,7 +220,7 @@ public class ShishaServer : EnemyAI
         if (_shishaId != receivedShishaId) return;
 
         SwitchBehaviourState((int)States.Roaming);
-        _netcodeController.DoAnimationClientRpc(_shishaId, ShishaClient.ForceWalk);
+        _netcodeController.SetAnimationTriggerClientRpc(_shishaId, ShishaClient.ForceWalk);
     }
     
     private void PickRandomIdleAnimation()
@@ -236,7 +232,7 @@ public class ShishaServer : EnemyAI
         if (randomValue < poopChance && _poopBehaviourEnabled)
         {
             SpawnShishaPoop();
-            _netcodeController.DoAnimationClientRpc(_shishaId, ShishaClient.Poo);
+            _netcodeController.SetAnimationTriggerClientRpc(_shishaId, ShishaClient.Poo);
         }
         else
         {
@@ -255,7 +251,7 @@ public class ShishaServer : EnemyAI
             }
         
             LogDebug($"Playing animation with id: ({animationToPlay}, {animationIdToPlay})");
-            _netcodeController.DoAnimationClientRpc(_shishaId, animationIdToPlay);
+            _netcodeController.SetAnimationTriggerClientRpc(_shishaId, animationIdToPlay);
         }
     }
 
@@ -317,7 +313,7 @@ public class ShishaServer : EnemyAI
         float wanderTimeMin = Mathf.Clamp(ShishaConfig.Instance.WanderTimeMin.Value, 0f, 500f);
         float ambientSfxTimeMin = Mathf.Clamp(ShishaConfig.Instance.AmbientSfxTimerMin.Value, 0f, 500f);
         roamSearchRoutine.loopSearch = true;
-        roamSearchRoutine.searchWidth = Mathf.Clamp(ShishaConfig.Instance.WanderRadius.Value, 1f, 500f);
+        roamSearchRoutine.searchWidth = Mathf.Clamp(ShishaConfig.Instance.WanderRadius.Value, 50f, 500f);
         creatureVoice.volume = Mathf.Clamp(ShishaConfig.Default.AmbientSoundEffectsVolume.Value, 0, 1) * 2;
         creatureSFX.volume = Mathf.Clamp(ShishaConfig.Default.FootstepSoundEffectsVolume.Value, 0, 1) * 2;
         anchoredWandering = ShishaConfig.Instance.AnchoredWandering.Value;
@@ -329,19 +325,36 @@ public class ShishaServer : EnemyAI
             Mathf.Clamp(ShishaConfig.Instance.WanderTimeMax.Value, wanderTimeMin, 1000f));
         ambientSfxTimerRange = new Vector2(ambientSfxTimeMin,
             Mathf.Clamp(ShishaConfig.Instance.AmbientSfxTimerMax.Value, ambientSfxTimeMin, 1000f));
-        
-        _netcodeController.InitializeConfigValuesClientRpc(_shishaId);
     }
 
     private void SwitchBehaviourState(int state)
     {
         if (currentBehaviourStateIndex == state) return;
-        LogDebug($"Switching to behaviour state {state}");
+        LogDebug($"Switching to behaviour state {state}.");
         previousBehaviourStateIndex = currentBehaviourStateIndex;
         currentBehaviourStateIndex = state;
-        _netcodeController.ChangeBehaviourStateIndexClientRpc(_shishaId, state);
+        _netcodeController.CurrentBehaviourStateIndex.Value = currentBehaviourStateIndex;
         InitializeState(state);
         LogDebug($"Switch to behaviour state {state} complete!");
+    }
+    
+    private void SubscribeToNetworkEvents()
+    {
+        if (!IsServer || _networkEventsSubscribed) return;
+        
+        _netcodeController.OnIdleCompleteStateBehaviourCallback += HandleIdleCompleteStateBehaviourCallback;
+
+        _networkEventsSubscribed = true;
+    }
+
+    
+    private void UnsubscribeFromNetworkEvents()
+    {
+        if (!IsServer || !_networkEventsSubscribed) return;
+        
+        _netcodeController.OnIdleCompleteStateBehaviourCallback -= HandleIdleCompleteStateBehaviourCallback;
+
+        _networkEventsSubscribed = false;
     }
     
     private void LogDebug(string msg)

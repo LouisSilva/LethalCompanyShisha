@@ -1,5 +1,6 @@
 ﻿using BepInEx.Logging;
 using LethalCompanyShisha.CustomStateMachineBehaviours;
+using System;
 using Unity.Netcode;
 using UnityEngine;
 using Logger = BepInEx.Logging.Logger;
@@ -42,68 +43,50 @@ public class ShishaClient : MonoBehaviour
     public AudioClip[] walkingAudioClips;
     [Tooltip("The interval between playing walking audio clips.")]
     public float walkingAudioInterval = 0.5f;
-    [Tooltip("The volume for walking audio.")]
-    [Range(0f, 2f)]
-    public float walkingAudioVolume = 1f;
+    
+    [SerializeField] private float rayLength = 0.5f;
     
     private Animator _animator;
     
-    private ShishaNetcodeController _netcodeController;
+    private readonly NullableObject<ShishaNetcodeController> _netcodeController = new();
+    
+    private ShishaPoopBehaviour _currentPoop;
     
     private Vector3 _agentLastPosition;
+
+    private bool _networkEventsSubscribed;
     
-    [SerializeField] private float rayLength = 0.5f;
+    private const float MaxWalkAnimationSpeedMultiplier = 2;
     private float _agentCurrentSpeed;
     private float _walkingAudioTimer;
-    private const float MaxWalkAnimationSpeedMultiplier = 2;
     
     private int _currentBehaviourStateIndex;
-
-    private ShishaPoopBehaviour _currentPoop;
     
     private void OnEnable()
     {
-        if (_netcodeController == null) return;
-        _netcodeController.OnSyncShishaIdentifier += HandleSyncShishaIdentifier;
-        _netcodeController.OnInitializeConfigValues += HandleInitializeConfigValues;
-        _netcodeController.OnChangeBehaviourStateIndex += HandleChangeBehaviourStateIndex;
-        _netcodeController.OnDoAnimation += HandleDoAnimation;
-        _netcodeController.OnChangeAnimationParameterBool += HandleChangeAnimationParameterBool;
-        _netcodeController.OnSpawnShishaPoop += HandleSpawnShishaPoop;
-        _netcodeController.OnPlayAmbientSfx += HandlePlayAmbientSfx;
-        _netcodeController.OnEnterDeathState += HandleEnterDeathState;
+        SubscribeToNetworkEvents();
     }
 
     private void OnDisable()
     {
-        if (_netcodeController == null) return;
-        _netcodeController.OnSyncShishaIdentifier -= HandleSyncShishaIdentifier;
-        _netcodeController.OnInitializeConfigValues -= HandleInitializeConfigValues;
-        _netcodeController.OnChangeBehaviourStateIndex -= HandleChangeBehaviourStateIndex;
-        _netcodeController.OnDoAnimation -= HandleDoAnimation;
-        _netcodeController.OnChangeAnimationParameterBool -= HandleChangeAnimationParameterBool;
-        _netcodeController.OnSpawnShishaPoop -= HandleSpawnShishaPoop;
-        _netcodeController.OnPlayAmbientSfx -= HandlePlayAmbientSfx;
-        _netcodeController.OnEnterDeathState -= HandleEnterDeathState;
+        UnsubscribeFromNetworkEvents();
     }
 
     private void Start()
     {
-        _mls = Logger.CreateLogSource($"Shisha Client {_shishaId}");
+        _mls = Logger.CreateLogSource($"{ShishaPlugin.ModGuid} | Shisha Client {_shishaId}");
         
         _animator = GetComponent<Animator>();
-        _netcodeController = GetComponent<ShishaNetcodeController>();
+        _netcodeController.Value = GetComponent<ShishaNetcodeController>();
         
-        if (_netcodeController != null) OnEnable();
+        if (_netcodeController != null) SubscribeToNetworkEvents();
         else
         {
-            _mls.LogError("Netcode controller is null, this is very bad");
+            _mls.LogError("Netcode controller is null, this is very bad.");
             return;
         }
 
-        creatureVoice.volume = ambientAudioVolume;
-        creatureSfx.volume = walkingAudioVolume;
-        
+        InitializeConfigValues();
         AddStateMachineBehaviours(_animator);
     }
 
@@ -113,7 +96,7 @@ public class ShishaClient : MonoBehaviour
         _agentCurrentSpeed = Mathf.Lerp(_agentCurrentSpeed, (position - _agentLastPosition).magnitude / Time.deltaTime, 0.75f);
         _agentLastPosition = position;
 
-        AdjustRotationToSlope();
+        // AdjustRotationToSlope();
 
         switch (_currentBehaviourStateIndex)
         {
@@ -221,10 +204,8 @@ public class ShishaClient : MonoBehaviour
         transform.rotation = Quaternion.Slerp(transform.rotation, slopeRotation, Time.deltaTime * rotationSpeed);
     }
 
-    private void HandleInitializeConfigValues(string receivedShishaId)
+    private void InitializeConfigValues()
     {
-        if (_shishaId != receivedShishaId) return;
-
         creatureVoice.volume = Mathf.Clamp(ShishaConfig.Default.AmbientSoundEffectsVolume.Value, 0, 1) * 2;
         creatureSfx.volume = Mathf.Clamp(ShishaConfig.Default.FootstepSoundEffectsVolume.Value, 0, 1) * 2;
     }
@@ -236,42 +217,70 @@ public class ShishaClient : MonoBehaviour
         {
             if (behaviour is BaseStateMachineBehaviour baseStateMachineBehaviour)
             {
-                baseStateMachineBehaviour.Initialize(_netcodeController);
+                baseStateMachineBehaviour.Initialize(_netcodeController.Value);
             }
         }
     }
 
-    private void HandleEnterDeathState(string receivedShishaId)
+    private void HandleBehaviourStateChanged(int oldValue, int newValue)
     {
-        if (_shishaId != receivedShishaId) return;
-        Destroy(gameObject);
+        _currentBehaviourStateIndex = newValue;
+        LogDebug($"Changed behaviour state to {newValue}");
+
+        ShishaServer.States newState = (ShishaServer.States)newValue;
+        switch (newState)
+        {
+            case ShishaServer.States.Roaming:
+                _animator.SetBool(IsWalking, true);
+                break;
+            case ShishaServer.States.Idle:
+                _animator.SetBool(IsWalking, false);
+                _animator.SetBool(IsRunning, false);
+                break;
+        }
     }
 
-    private void HandleChangeAnimationParameterBool(string receivedShishaId, int animationId, bool value)
-    {
-        if (_shishaId != receivedShishaId) return;
-        _animator.SetBool(animationId, value);
-    }
-
-    private void HandleDoAnimation(string receivedShishaId, int animationId)
+    private void HandleSetAnimationTriggerTrigger(string receivedShishaId, int animationId)
     {
         if (_shishaId != receivedShishaId) return;
         _animator.SetTrigger(animationId);
-    }
-
-    private void HandleChangeBehaviourStateIndex(string receivedShishaId, int newBehaviourStateIndex)
-    {
-        if (_shishaId != receivedShishaId) return;
-        _currentBehaviourStateIndex = newBehaviourStateIndex;
     }
 
     private void HandleSyncShishaIdentifier(string receivedShishaId)
     {
         _shishaId = receivedShishaId;
         _mls?.Dispose();
-        _mls = Logger.CreateLogSource($"Shisha Client {_shishaId}");
+        _mls = Logger.CreateLogSource($"{ShishaPlugin.ModGuid} | Shisha Client {_shishaId}");
 
         LogDebug("Successfully synced shisha identifier");
+    }
+    
+    private void SubscribeToNetworkEvents()
+    {
+        if (_networkEventsSubscribed || !_netcodeController.IsNotNull) return;
+        
+        _netcodeController.Value.OnSyncShishaIdentifier += HandleSyncShishaIdentifier;
+        _netcodeController.Value.OnSetAnimationTrigger += HandleSetAnimationTriggerTrigger;
+        _netcodeController.Value.OnSpawnShishaPoop += HandleSpawnShishaPoop;
+        _netcodeController.Value.OnPlayAmbientSfx += HandlePlayAmbientSfx;
+
+        _netcodeController.Value.CurrentBehaviourStateIndex.OnValueChanged += HandleBehaviourStateChanged;
+
+        _networkEventsSubscribed = true;
+    }
+    
+    private void UnsubscribeFromNetworkEvents()
+    {
+        if (!_networkEventsSubscribed || !_netcodeController.IsNotNull) return;
+        
+        _netcodeController.Value.OnSyncShishaIdentifier -= HandleSyncShishaIdentifier;
+        _netcodeController.Value.OnSetAnimationTrigger -= HandleSetAnimationTriggerTrigger;
+        _netcodeController.Value.OnSpawnShishaPoop -= HandleSpawnShishaPoop;
+        _netcodeController.Value.OnPlayAmbientSfx -= HandlePlayAmbientSfx;
+        
+        _netcodeController.Value.CurrentBehaviourStateIndex.OnValueChanged -= HandleBehaviourStateChanged;
+
+        _networkEventsSubscribed = false;
     }
     
     private void LogDebug(string msg)

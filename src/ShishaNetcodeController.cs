@@ -1,36 +1,23 @@
 ﻿using System;
 using Unity.Netcode;
+using UnityEngine;
 
 namespace LethalCompanyShisha;
 
 public class ShishaNetcodeController : NetworkBehaviour
 {
     public event Action<string> OnSyncShishaIdentifier;
-    public event Action<string> OnInitializeConfigValues;
-    public event Action<string, int> OnChangeBehaviourStateIndex;
     public event Action<string> OnIdleCompleteStateBehaviourCallback;
-    public event Action<string, int> OnDoAnimation;
-    public event Action<string, int, bool> OnChangeAnimationParameterBool;
+    public event Action<string, int> OnSetAnimationTrigger;
     public event Action<string, NetworkObjectReference, int, int> OnSpawnShishaPoop;
     public event Action<string, int> OnPlayAmbientSfx;
-    public event Action<string> OnEnterDeathState;
-
-    [ClientRpc]
-    public void EnterDeathStateClientRpc(string receivedShishaId)
-    {
-        OnEnterDeathState?.Invoke(receivedShishaId);
-    }
+    
+    [HideInInspector] public readonly NetworkVariable<int> CurrentBehaviourStateIndex = new();
 
     [ClientRpc]
     public void PlayAmbientSfxClientRpc(string receivedShishaId, int clipIndex)
     {
         OnPlayAmbientSfx?.Invoke(receivedShishaId, clipIndex);
-    }
-    
-    [ClientRpc]
-    public void InitializeConfigValuesClientRpc(string receivedShishaId)
-    {
-        OnInitializeConfigValues?.Invoke(receivedShishaId);
     }
 
     [ClientRpc]
@@ -41,27 +28,15 @@ public class ShishaNetcodeController : NetworkBehaviour
     }
 
     [ClientRpc]
-    public void ChangeAnimationParameterBoolClientRpc(string receivedShishaId, int animationId, bool value)
+    public void SetAnimationTriggerClientRpc(string receivedShishaId, int animationId)
     {
-        OnChangeAnimationParameterBool?.Invoke(receivedShishaId, animationId, value);
-    }
-
-    [ClientRpc]
-    public void DoAnimationClientRpc(string receivedShishaId, int animationId)
-    {
-        OnDoAnimation?.Invoke(receivedShishaId, animationId);
+        OnSetAnimationTrigger?.Invoke(receivedShishaId, animationId);
     }
 
     [ServerRpc(RequireOwnership = false)]
     public void IdleCompleteStateBehaviourCallbackServerRpc(string receivedShishaId)
     {
         OnIdleCompleteStateBehaviourCallback?.Invoke(receivedShishaId);
-    }
-
-    [ClientRpc]
-    public void ChangeBehaviourStateIndexClientRpc(string receivedShishaId, int newBehaviourStateIndex)
-    {
-        OnChangeBehaviourStateIndex?.Invoke(receivedShishaId, newBehaviourStateIndex);
     }
 
     [ClientRpc]
