@@ -11,6 +11,8 @@ public class ShishaNetcodeController : NetworkBehaviour
     public event Action<string, int> OnSetAnimationTrigger;
     public event Action<string, NetworkObjectReference, int, int> OnSpawnShishaPoop;
     public event Action<string, int> OnPlayAmbientSfx;
+
+    public event Action<string, int, bool> OnSetAnimationBool;
     
     [HideInInspector] public readonly NetworkVariable<int> CurrentBehaviourStateIndex = new();
 
@@ -31,6 +33,12 @@ public class ShishaNetcodeController : NetworkBehaviour
     public void SetAnimationTriggerClientRpc(string receivedShishaId, int animationId)
     {
         OnSetAnimationTrigger?.Invoke(receivedShishaId, animationId);
+    }
+    
+    [ClientRpc]
+    public void SetAnimationBoolClientRpc(string receivedShishaId, int animationId, bool value)
+    {
+        OnSetAnimationBool?.Invoke(receivedShishaId, animationId, value);
     }
 
     [ServerRpc(RequireOwnership = false)]

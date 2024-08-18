@@ -31,6 +31,8 @@ public class ShishaConfig : SyncedInstance<ShishaConfig>
     public readonly ConfigEntry<bool> TimeInDayLeaveEnabled;
     public readonly ConfigEntry<bool> PoopBehaviourEnabled;
     public readonly ConfigEntry<float> PoopChance;
+    public readonly ConfigEntry<bool> Killable;
+    public readonly ConfigEntry<int> Health;
 
     public ShishaConfig(ConfigFile cfg)
     {
@@ -48,6 +50,20 @@ public class ShishaConfig : SyncedInstance<ShishaConfig>
             "Anchored Wandering",
             true,
             "When enabled, the Shisha will only wander around its spawn point within a radius defined by the Wander Radius. If disabled, the Shisha can wander from any point within the Wander Radius."
+        );
+        
+        Killable = cfg.Bind(
+            "General",
+            "Killable",
+            true,
+            "Whether the Shisha can be killed."
+        );
+        
+        Health = cfg.Bind(
+            "General",
+            "Health",
+            3,
+            "The amount of health the Shisha has."
         );
 
         MaxSpeed = cfg.Bind(

@@ -1,6 +1,5 @@
 ﻿using BepInEx.Logging;
 using LethalCompanyShisha.CustomStateMachineBehaviours;
-using System;
 using Unity.Netcode;
 using UnityEngine;
 using Logger = BepInEx.Logging.Logger;
@@ -15,6 +14,7 @@ public class ShishaClient : MonoBehaviour
     
     public static readonly int IsRunning = Animator.StringToHash("Run");
     public static readonly int IsWalking = Animator.StringToHash("Walk");
+    public static readonly int IsDead = Animator.StringToHash("Dead");
     public static readonly int ForceWalk = Animator.StringToHash("ForceWalk");
     private static readonly int WalkSpeed = Animator.StringToHash("WalkSpeed");
     private static readonly int RunSpeed = Animator.StringToHash("RunSpeed");
@@ -230,20 +230,31 @@ public class ShishaClient : MonoBehaviour
         ShishaServer.States newState = (ShishaServer.States)newValue;
         switch (newState)
         {
-            case ShishaServer.States.Roaming:
+            case ShishaServer.States.Roaming or ShishaServer.States.RunningAway:
                 _animator.SetBool(IsWalking, true);
                 break;
             case ShishaServer.States.Idle:
                 _animator.SetBool(IsWalking, false);
                 _animator.SetBool(IsRunning, false);
                 break;
+            case ShishaServer.States.Dead:
+                _animator.SetBool(IsWalking, false);
+                _animator.SetBool(IsRunning, false);
+                _animator.SetBool(IsDead, true);
+                break;
         }
     }
 
-    private void HandleSetAnimationTriggerTrigger(string receivedShishaId, int animationId)
+    private void HandleSetAnimationTrigger(string receivedShishaId, int animationId)
     {
         if (_shishaId != receivedShishaId) return;
         _animator.SetTrigger(animationId);
+    }
+
+    private void HandleSetAnimationBool(string receivedShishaId, int animationId, bool value)
+    {
+        if (_shishaId != receivedShishaId) return;
+        _animator.SetBool(animationId, value);
     }
 
     private void HandleSyncShishaIdentifier(string receivedShishaId)
@@ -260,9 +271,10 @@ public class ShishaClient : MonoBehaviour
         if (_networkEventsSubscribed || !_netcodeController.IsNotNull) return;
         
         _netcodeController.Value.OnSyncShishaIdentifier += HandleSyncShishaIdentifier;
-        _netcodeController.Value.OnSetAnimationTrigger += HandleSetAnimationTriggerTrigger;
+        _netcodeController.Value.OnSetAnimationTrigger += HandleSetAnimationTrigger;
         _netcodeController.Value.OnSpawnShishaPoop += HandleSpawnShishaPoop;
         _netcodeController.Value.OnPlayAmbientSfx += HandlePlayAmbientSfx;
+        _netcodeController.Value.OnSetAnimationBool += HandleSetAnimationBool;
 
         _netcodeController.Value.CurrentBehaviourStateIndex.OnValueChanged += HandleBehaviourStateChanged;
 
@@ -274,9 +286,10 @@ public class ShishaClient : MonoBehaviour
         if (!_networkEventsSubscribed || !_netcodeController.IsNotNull) return;
         
         _netcodeController.Value.OnSyncShishaIdentifier -= HandleSyncShishaIdentifier;
-        _netcodeController.Value.OnSetAnimationTrigger -= HandleSetAnimationTriggerTrigger;
+        _netcodeController.Value.OnSetAnimationTrigger -= HandleSetAnimationTrigger;
         _netcodeController.Value.OnSpawnShishaPoop -= HandleSpawnShishaPoop;
         _netcodeController.Value.OnPlayAmbientSfx -= HandlePlayAmbientSfx;
+        _netcodeController.Value.OnSetAnimationBool -= HandleSetAnimationBool;
         
         _netcodeController.Value.CurrentBehaviourStateIndex.OnValueChanged -= HandleBehaviourStateChanged;
 

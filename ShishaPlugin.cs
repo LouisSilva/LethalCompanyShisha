@@ -29,7 +29,7 @@ public class ShishaPlugin : BaseUnityPlugin
 {
     public const string ModGuid = $"LCM_Shisha|{ModVersion}";
     private const string ModName = "Lethal Company Shisha Mod";
-    private const string ModVersion = "1.0.7";
+    private const string ModVersion = "1.1.0";
     
     private readonly Harmony _harmony = new(ModGuid);
 
@@ -74,6 +74,7 @@ public class ShishaPlugin : BaseUnityPlugin
         _shishaEnemyType.MaxCount = Mathf.Max(0, ShishaConfig.Instance.ShishaMaxAmount.Value);
         _shishaEnemyType.PowerLevel = Mathf.Max(0, ShishaConfig.Instance.ShishaPowerLevel.Value);
         _shishaEnemyType.normalizedTimeInDayToLeave = ShishaConfig.Instance.TimeInDayLeaveEnabled.Value ? 0.6f : 1f;
+        _shishaEnemyType.canDie = ShishaConfig.Instance.Killable.Value;
         
         TerminalNode shishaTerminalNode = Assets.MainAssetBundle.LoadAsset<TerminalNode>("ShishaTerminalNode");
         TerminalKeyword shishaTerminalKeyword = Assets.MainAssetBundle.LoadAsset<TerminalKeyword>("ShishaTerminalKeyword");
