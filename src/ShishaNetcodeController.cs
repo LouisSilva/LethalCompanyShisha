@@ -15,6 +15,7 @@ public class ShishaNetcodeController : NetworkBehaviour
     public event Action<string, int, bool> OnSetAnimationBool;
     
     [HideInInspector] public readonly NetworkVariable<int> CurrentBehaviourStateIndex = new();
+    [HideInInspector] public readonly NetworkVariable<ulong> TargetPlayerClientId = new();
 
     [ClientRpc]
     public void PlayAmbientSfxClientRpc(string receivedShishaId, int clipIndex)

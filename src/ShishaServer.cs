@@ -52,6 +52,8 @@ public class ShishaServer : EnemyAI
     public Vector2 ambientSfxTimerRange = new(7.5f, 40f);
     public float poopChance = 0.05f; 
     
+    public const ulong NullPlayerId = 69420;
+    
     private ShishaNetcodeController _netcodeController;
 
     private float _wanderTimer;
@@ -70,6 +72,8 @@ public class ShishaServer : EnemyAI
     private Vector3 _spawnPosition;
 
     private Transform _runAwayTransform;
+
+    private readonly NullableObject<PlayerControllerB> _actualTargetPlayer = new();
 
     private void OnEnable()
     {
@@ -116,10 +120,11 @@ public class ShishaServer : EnemyAI
     {
         base.Update();
         if (!IsServer) return;
-        if (!wanderEnabled) return;
         if (isEnemyDead) return;
-
+        
         _takeDamageCooldown -= Time.deltaTime;
+        
+        if (!wanderEnabled) return;
         
         switch (currentBehaviourStateIndex)
         {
@@ -253,7 +258,9 @@ public class ShishaServer : EnemyAI
             case (int)States.RunningAway:
             {
                 if (roamSearchRoutine.inProgress) StopSearch(roamSearchRoutine);
-                _agentMaxSpeed = maxSpeed + 2;
+                agent.speed *= 1.25f;
+                agent.acceleration *= 1.25f;
+                _agentMaxSpeed = maxSpeed + 4;
                 _agentMaxAcceleration = maxAcceleration + 5;
                 
                 break;
@@ -392,11 +399,10 @@ public class ShishaServer : EnemyAI
                 SetDestinationToPosition(_runAwayTransform.position);
                 SwitchBehaviourState((int)States.RunningAway);
             }
-            
-            
         }
         else
         {
+            _netcodeController.TargetPlayerClientId.Value = playerWhoHit == null ? NullPlayerId : playerWhoHit.actualClientId;
             SwitchBehaviourState((int)States.Dead);
         }
     }
@@ -599,11 +605,22 @@ public class ShishaServer : EnemyAI
         LogDebug($"Switch to behaviour state {state} complete!");
     }
     
+    private void HandleTargetPlayerChanged(ulong oldValue, ulong newValue)
+    {
+        _actualTargetPlayer.Value = newValue == NullPlayerId ? null : StartOfRound.Instance.allPlayerScripts[newValue];
+        targetPlayer = _actualTargetPlayer.Value;
+        LogDebug(_actualTargetPlayer.IsNotNull
+            ? $"Changed target player to {_actualTargetPlayer.Value?.playerUsername}."
+            : "Changed target player to null.");
+    }
+    
     private void SubscribeToNetworkEvents()
     {
         if (!IsServer || _networkEventsSubscribed) return;
         
         _netcodeController.OnIdleCompleteStateBehaviourCallback += HandleIdleCompleteStateBehaviourCallback;
+        
+        _netcodeController.TargetPlayerClientId.OnValueChanged += HandleTargetPlayerChanged;
 
         _networkEventsSubscribed = true;
     }
@@ -614,6 +631,8 @@ public class ShishaServer : EnemyAI
         if (!IsServer || !_networkEventsSubscribed) return;
         
         _netcodeController.OnIdleCompleteStateBehaviourCallback -= HandleIdleCompleteStateBehaviourCallback;
+        
+        _netcodeController.TargetPlayerClientId.OnValueChanged -= HandleTargetPlayerChanged;
 
         _networkEventsSubscribed = false;
     }
