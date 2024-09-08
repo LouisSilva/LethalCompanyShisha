@@ -215,7 +215,8 @@ public class ShishaClient : MonoBehaviour
         renderer.enabled = false;
         Destroy(scanNode.gameObject);
         yield return new WaitForSeconds(0.1f);
-
+        
+        Destroy(renderer.gameObject);
         if (!_netcodeController.Value.IsServer) yield break;
         SpawnDeathPoopsServerRpc();
     }
