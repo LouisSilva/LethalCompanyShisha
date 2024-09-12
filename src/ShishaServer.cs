@@ -16,8 +16,8 @@ public class ShishaServer : EnemyAI
 {
     private ManualLogSource _mls;
     private string _shishaId;
-    
-    public enum PathStatus
+
+    private enum PathStatus
     {
         Invalid, // Path is invalid or incomplete
         ValidButInLos, // Path is valid but obstructed by line of sight
@@ -50,7 +50,9 @@ public class ShishaServer : EnemyAI
     [Tooltip("The creature will wander for a random duration within this range before going to an idle state.")]
     public Vector2 wanderTimeRange = new(5f, 45f);
     public Vector2 ambientSfxTimerRange = new(7.5f, 40f);
-    public float poopChance = 0.05f; 
+    public float poopChance = 0.05f;
+    public float runningAwayMaxSpeed = 4f;
+    public float runningAwayMaxAcceleration = 8f;
     
     public const ulong NullPlayerId = 69420;
     
@@ -148,6 +150,12 @@ public class ShishaServer : EnemyAI
                 
                 break;
             }
+
+            case (int)States.RunningAway:
+            {
+                MoveWithAcceleration();
+                break;
+            }
         }
         
         _ambientAudioTimer -= Time.deltaTime;
@@ -191,7 +199,7 @@ public class ShishaServer : EnemyAI
     {
         while (true)
         {
-            if (!IsPlayerLookingAtShisha(90f, 80, 3f))
+            if (!IsPlayerLookingAtShisha(120f, 80, 3f))
             {
                 KillEnemyServerRpc(false);
                 Destroy(gameObject);
@@ -260,8 +268,8 @@ public class ShishaServer : EnemyAI
                 if (roamSearchRoutine.inProgress) StopSearch(roamSearchRoutine);
                 agent.speed *= 1.25f;
                 agent.acceleration *= 1.25f;
-                _agentMaxSpeed = maxSpeed + 4;
-                _agentMaxAcceleration = maxAcceleration + 5;
+                _agentMaxSpeed = runningAwayMaxSpeed;
+                _agentMaxAcceleration = runningAwayMaxAcceleration;
                 
                 break;
             }
@@ -584,6 +592,8 @@ public class ShishaServer : EnemyAI
         anchoredWandering = ShishaConfig.Instance.AnchoredWandering.Value;
         maxSpeed = Mathf.Clamp(ShishaConfig.Instance.MaxSpeed.Value, 0.1f, 100f);
         maxAcceleration = Mathf.Clamp(ShishaConfig.Instance.MaxAcceleration.Value, 0.1f, 100f);
+        runningAwayMaxSpeed = Mathf.Clamp(ShishaConfig.Instance.RunningAwayMaxSpeed.Value, 0.1f, 100f);
+        runningAwayMaxAcceleration = Mathf.Clamp(ShishaConfig.Instance.RunningAwayMaxAcceleration.Value, 0.1f, 100f);
         _poopBehaviourEnabled = ShishaConfig.Instance.PoopBehaviourEnabled.Value;
         poopChance = Mathf.Clamp(ShishaConfig.Instance.PoopChance.Value, 0f, 1f);
         _killable = ShishaConfig.Instance.Killable.Value;

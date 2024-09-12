@@ -29,7 +29,7 @@ public class ShishaPlugin : BaseUnityPlugin
 {
     public const string ModGuid = $"LCM_Shisha|{ModVersion}";
     private const string ModName = "Lethal Company Shisha Mod";
-    private const string ModVersion = "1.1.2";
+    private const string ModVersion = "1.1.3";
     
     private readonly Harmony _harmony = new(ModGuid);
 

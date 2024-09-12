@@ -24,6 +24,8 @@ public class ShishaConfig : SyncedInstance<ShishaConfig>
     public readonly ConfigEntry<bool> AnchoredWandering;
     public readonly ConfigEntry<float> MaxSpeed;
     public readonly ConfigEntry<float> MaxAcceleration;
+    public readonly ConfigEntry<float> RunningAwayMaxSpeed;
+    public readonly ConfigEntry<float> RunningAwayMaxAcceleration;
     public readonly ConfigEntry<float> WanderTimeMin;
     public readonly ConfigEntry<float> WanderTimeMax;
     public readonly ConfigEntry<float> AmbientSfxTimerMin;
@@ -78,6 +80,20 @@ public class ShishaConfig : SyncedInstance<ShishaConfig>
             "Max Acceleration",
             5f,
             "The maximum acceleration of the Shisha."
+        );
+        
+        RunningAwayMaxSpeed = cfg.Bind(
+            "General",
+            "Running Away Max Speed",
+            7f,
+            "The maximum speed of the Shisha when running away from someone."
+        );
+
+        RunningAwayMaxAcceleration = cfg.Bind(
+            "General",
+            "Running Away Max Acceleration",
+            8f,
+            "The maximum acceleration of the Shisha when running away from someone."
         );
 
         WanderTimeMin = cfg.Bind(
