@@ -159,24 +159,16 @@ public class ShishaClient : MonoBehaviour
         WalkieTalkie.TransmitOneShotAudio(creatureVoice, ambientAudioClipToPlay, ambientAudioVolume);
     }
 
-    private void HandleSpawnShishaPoop(string receivedShishaId, NetworkObjectReference poopNetworkObjectReference,
-        int variantIndex, int scrapValue)
+    private void HandleSpawnShishaPoop(string receivedShishaId, NetworkObjectReference poopNetworkObjectReference)
     {
         if (_shishaId != receivedShishaId) return;
         if (!poopNetworkObjectReference.TryGet(out NetworkObject poopNetworkObject)) return;
         LogDebug("Poop network object was not null!");
 
         _currentPoop = poopNetworkObject.GetComponent<ShishaPoopBehaviour>();
-        _currentPoop.isPartOfShisha = true;
         _currentPoop.transform.position = poopPlaceholder.transform.position;
         _currentPoop.transform.rotation = poopPlaceholder.transform.rotation;
         _currentPoop.transform.SetParent(poopPlaceholder, false);
-        _currentPoop.grabbableToEnemies = false;
-        _currentPoop.fallTime = 1f;
-        _currentPoop.variantIndex = variantIndex;
-        _currentPoop.SetScrapValue(scrapValue);
-        _currentPoop.mainObjectRenderer.material = _currentPoop.poopMaterialVariants[variantIndex];
-        _currentPoop.meshFilter.mesh = _currentPoop.poopMeshVariants[variantIndex];
         
         LogDebug("Shisha poop spawned");
     }
@@ -185,20 +177,14 @@ public class ShishaClient : MonoBehaviour
     {
         if (_currentPoop == null) return;
 
-        _currentPoop.isPartOfShisha = false;
         _currentPoop.parentObject = null;
-        _currentPoop.heldByPlayerOnServer = false;
         _currentPoop.transform.SetParent(StartOfRound.Instance.propsContainer, true);
         _currentPoop.EnablePhysics(true);
+        _currentPoop.FallToGround(true);
+        _currentPoop.transform.SetParent(RoundManager.Instance.spawnedScrapContainer, true);
         _currentPoop.isHeld = false;
-        _currentPoop.isPocketed = false;
         _currentPoop.grabbable = true;
         _currentPoop.grabbableToEnemies = true;
-        _currentPoop.startFallingPosition =
-            _currentPoop.transform.parent.InverseTransformPoint(_currentPoop.transform.position);
-        _currentPoop.FallToGround(true);
-        _currentPoop.fallTime = Random.Range(-0.3f, 0.05f);
-        
     }
 
     public void OnAnimationEventDeathAnimationComplete()
@@ -232,50 +218,13 @@ public class ShishaClient : MonoBehaviour
             GameObject poopObject = Instantiate(ShishaPlugin.ShishaPoopItem.spawnPrefab, poopPos, Quaternion.identity, StartOfRound.Instance.propsContainer);
             ShishaPoopBehaviour poopBehaviour = poopObject.GetComponent<ShishaPoopBehaviour>();
             
-            poopBehaviour.variantIndex = poopVariant;
             poopBehaviour.EnablePhysics(true);
-            poopBehaviour.startFallingPosition =
-                poopBehaviour.transform.parent.InverseTransformPoint(poopBehaviour.transform.position);
             poopBehaviour.FallToGround(true);
-            poopBehaviour.fallTime = Random.Range(-0.3f, 0.05f);
-            
-            Tuple<int, int> scrapValueRange = poopBehaviour.variantIndex switch
-            {
-                0 => new Tuple<int, int>(
-                    ShishaConfig.Instance.CommonCrystalMinValue.Value,
-                    ShishaConfig.Instance.CommonCrystalMaxValue.Value + 1),
-
-                1 => new Tuple<int, int>(
-                    ShishaConfig.Instance.UncommonCrystalMinValue.Value,
-                    ShishaConfig.Instance.UncommonCrystalMaxValue.Value + 1),
-
-                2 => new Tuple<int, int>(
-                    ShishaConfig.Instance.RareCrystalMinValue.Value,
-                    ShishaConfig.Instance.RareCrystalMaxValue.Value + 1),
-            
-                _ => new Tuple<int, int>(1, 2) // Shouldn't ever happen
-            };
-            
-            int scrapValue = Random.Range(scrapValueRange.Item1, scrapValueRange.Item2);
-            poopBehaviour.SetScrapValue(scrapValue);
-            RoundManager.Instance.totalScrapValueInLevel += scrapValue;
+            poopBehaviour.transform.SetParent(RoundManager.Instance.spawnedScrapContainer, true);
             
             NetworkObject poopNetworkObject = poopObject.GetComponent<NetworkObject>();
             poopNetworkObject.Spawn();
         }
-    }
-    
-    private void AdjustRotationToSlope()
-    {
-        const float rotationSpeed = 3f;
-
-        Vector3 rayOrigin = transform.position + Vector3.up * 0.5f;
-        if (!Physics.Raycast(rayOrigin, Vector3.down, out RaycastHit hit, rayLength)) return;
-        
-        Vector3 normal = hit.normal;
-        Vector3 forward = Vector3.Cross(transform.right, normal);
-        Quaternion slopeRotation = Quaternion.LookRotation(forward, normal);
-        transform.rotation = Quaternion.Slerp(transform.rotation, slopeRotation, Time.deltaTime * rotationSpeed);
     }
 
     private void InitializeConfigValues()

@@ -335,52 +335,22 @@ public class ShishaServer : EnemyAI
     private void SpawnShishaPoop()
     {
         if (!IsServer) return;
-
-        GameObject poopObject = Instantiate(
-            ShishaPlugin.ShishaPoopItem.spawnPrefab,
-            poopPlaceholder.position,
-            poopPlaceholder.rotation,
-            poopPlaceholder);
-
-        int variantIndex = ShishaPoopBehaviour.GetRandomVariantIndex();
-        ShishaPoopBehaviour poopBehaviour = poopObject.GetComponent<ShishaPoopBehaviour>();
+        
         if (poopPlaceholder == null)
         {
             _mls.LogError("PoopBehaviour is null, this should not happen.");
             return;
         }
 
-        poopBehaviour.isPartOfShisha = true;
-        poopBehaviour.grabbableToEnemies = false;
-        poopBehaviour.grabbable = false;
-        poopBehaviour.fallTime = 1f;
-        poopBehaviour.variantIndex = variantIndex;
+        GameObject poopObject = Instantiate(
+            ShishaPlugin.ShishaPoopItem.spawnPrefab,
+            poopPlaceholder.position,
+            poopPlaceholder.rotation,
+            poopPlaceholder);
         
-        Tuple<int, int> scrapValueRange = poopBehaviour.variantIndex switch
-        {
-            0 => new Tuple<int, int>(
-                ShishaConfig.Instance.CommonCrystalMinValue.Value,
-                ShishaConfig.Instance.CommonCrystalMaxValue.Value + 1),
-
-            1 => new Tuple<int, int>(
-                ShishaConfig.Instance.UncommonCrystalMinValue.Value,
-                ShishaConfig.Instance.UncommonCrystalMaxValue.Value + 1),
-
-            2 => new Tuple<int, int>(
-                ShishaConfig.Instance.RareCrystalMinValue.Value,
-                ShishaConfig.Instance.RareCrystalMaxValue.Value + 1),
-            
-            _ => new Tuple<int, int>(1, 2) // Shouldn't ever happen
-        };
-
-        int scrapValue = Random.Range(scrapValueRange.Item1, scrapValueRange.Item2);
-        LogDebug($"Scrap value: {scrapValue}, scrap value range: {scrapValueRange}");
-        poopBehaviour.SetScrapValue(scrapValue);
-        RoundManager.Instance.totalScrapValueInLevel += scrapValue;
-
-        NetworkObject poopNetworkObject = poopObject.GetComponent<NetworkObject>();
-        poopNetworkObject.Spawn();
-        _netcodeController.SpawnShishaPoopClientRpc(_shishaId, poopNetworkObject, poopBehaviour.variantIndex, scrapValue);
+        ShishaPoopBehaviour poopBehaviour = poopObject.GetComponent<ShishaPoopBehaviour>();
+        poopObject.GetComponent<NetworkObject>().Spawn();
+        _netcodeController.SpawnShishaPoopClientRpc(_shishaId, poopObject);
     }
     
     public override void HitEnemy(int force = 1, PlayerControllerB playerWhoHit = null, bool playHitSFX = false, int hitId = -1)
