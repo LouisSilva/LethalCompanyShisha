@@ -3,6 +3,7 @@ using System.Collections;
 using System.Linq;
 using BepInEx.Logging;
 using GameNetcodeStuff;
+using LethalCompanyShisha.Types;
 using System.Collections.Generic;
 using Unity.Netcode;
 using UnityEngine;
@@ -191,7 +192,7 @@ public class ShishaServer : EnemyAI
     {
         if (!IsServer) return;
         if (!ShishaConfig.Instance.TimeInDayLeaveEnabled.Value) return;
-        StartCoroutine(LeaveWhenNoOneIsLooking(10f));
+        StartCoroutine(LeaveWhenNoOneIsLooking(Random.Range(5f, 12f)));
         base.DaytimeEnemyLeave();
     }
 
@@ -282,7 +283,6 @@ public class ShishaServer : EnemyAI
                 agent.acceleration = 100f;
                 _agentMaxSpeed = 0f;
                 _agentMaxAcceleration = 100f;
-                isEnemyDead = true;
                 moveTowardsDestination = false;
                 KillEnemyServerRpc(false);
                 

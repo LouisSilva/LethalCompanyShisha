@@ -1,4 +1,5 @@
 ﻿using BepInEx.Logging;
+using LethalCompanyShisha.Types;
 using UnityEngine;
 using Logger = BepInEx.Logging.Logger;
 

@@ -1,6 +1,7 @@
 ﻿using BepInEx.Logging;
 using GameNetcodeStuff;
 using LethalCompanyShisha.CustomStateMachineBehaviours;
+using LethalCompanyShisha.Types;
 using System;
 using System.Collections;
 using System.Collections.Generic;
@@ -199,12 +200,19 @@ public class ShishaClient : MonoBehaviour
         
         poofParticleSystem.Play();
         renderer.enabled = false;
+        creatureSfx.Stop(true);
         Destroy(scanNode.gameObject);
         yield return new WaitForSeconds(0.1f);
         
         Destroy(renderer.gameObject);
         if (!_netcodeController.Value.IsServer) yield break;
+        
         SpawnDeathPoopsServerRpc();
+        yield return new WaitForSeconds(0.5f);
+
+        ShishaServer shishaServer = GetComponent<ShishaServer>();
+        if (shishaServer != null) Destroy(shishaServer);
+        Destroy(this);
     }
 
     [ServerRpc]

@@ -1,5 +1,7 @@
 ﻿using System;
 using BepInEx.Logging;
+using LethalCompanyShisha.Types;
+using System.Collections;
 using Unity.Netcode;
 using UnityEngine;
 using Logger = BepInEx.Logging.Logger;
@@ -15,17 +17,23 @@ public class ShishaPoopBehaviour : PhysicsProp
     public MeshFilter meshFilter;
     public Mesh[] poopMeshVariants;
     public Material[] poopMaterialVariants;
-
-    private bool _loadedVariantFromSave;
+    
     private bool _networkEventsSubscribed;
+    private bool _loadedVariantFromSave;
 
-    private ScanNodeProperties _scanNode;
+    private CachedValue<ScanNodeProperties> _scanNode;
+    private CachedValue<NetworkObject> _networkObject;
 
     private readonly NetworkVariable<int> _variantIndex = new(-1);
     private readonly NetworkVariable<bool> _isPartOfShisha = new(true);
     private readonly NetworkVariable<int> _scrapValue = new(ScrapValuePlaceholder);
 
     private const int ScrapValuePlaceholder = 69420;
+
+    private void Awake()
+    {
+        _networkObject = new CachedValue<NetworkObject>(GetComponent<NetworkObject>, true);
+    }
     
     private void OnEnable()
     {
@@ -40,7 +48,7 @@ public class ShishaPoopBehaviour : PhysicsProp
     public override void Start()
     {
         base.Start();
-        _scanNode = GetComponentInChildren<ScanNodeProperties>();
+        _scanNode = new CachedValue<ScanNodeProperties>(GetComponentInChildren<ScanNodeProperties>, true);
         SubscribeToNetworkEvents();
 
         if (IsServer)
@@ -54,6 +62,7 @@ public class ShishaPoopBehaviour : PhysicsProp
             {
                 _variantIndex.Value = GetRandomVariantIndex();
                 _scrapValue.Value = CalculateScrapValue(_variantIndex.Value);
+                _isPartOfShisha.Value = true; 
             }
         }
     }
@@ -163,8 +172,8 @@ public class ShishaPoopBehaviour : PhysicsProp
     private void OnScrapValueChanged(int oldValue, int newValue)
     {
         scrapValue = newValue;
-        _scanNode.scrapValue = newValue;
-        _scanNode.subText = $"Value: ${newValue}";
+        _scanNode.Value.scrapValue = newValue;
+        _scanNode.Value.subText = $"Value: ${newValue}";
     }
 
     private void OnVariantIndexChanged(int oldValue, int newValue)
@@ -186,12 +195,24 @@ public class ShishaPoopBehaviour : PhysicsProp
 
     public override void LoadItemSaveData(int saveData)
     {
-        // This is called by the server only
-        string saveDataStr = $"{saveData}";
-        _variantIndex.Value = int.Parse($"{saveDataStr[0]}") - 1;
-        _scrapValue.Value = int.Parse($"{saveDataStr[1..]}");
         _loadedVariantFromSave = true;
-        LogDebug($"Variant index {_variantIndex.Value} APPLIED FROM SAVE DATA.");
+        string saveDataStr = $"{saveData}";
+        int loadedVariantIndex = int.Parse($"{saveDataStr[0]}") - 1;
+        int loadedScrapValue = int.Parse($"{saveDataStr[1..]}");
+
+        StartCoroutine(ApplyItemSaveData(loadedVariantIndex, loadedScrapValue));
+    }
+
+    private IEnumerator ApplyItemSaveData(int loadedVariantIndex, int loadedScrapValue)
+    {
+        while (!_networkObject.Value.IsSpawned)
+        {
+            yield return null;
+        }
+
+        _variantIndex.Value = loadedVariantIndex;
+        _scrapValue.Value = loadedScrapValue;
+        _isPartOfShisha.Value = false;
     }
 
     [ClientRpc]
@@ -228,7 +249,7 @@ public class ShishaPoopBehaviour : PhysicsProp
     private void LogDebug(string msg)
     {
         #if DEBUG
-        _mls.LogInfo(msg);
+        _mls?.LogInfo(msg);
         #endif
     }
 }
