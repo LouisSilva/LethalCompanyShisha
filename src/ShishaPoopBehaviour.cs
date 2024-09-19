@@ -1,7 +1,9 @@
 ﻿using System;
 using BepInEx.Logging;
+using HarmonyLib;
 using LethalCompanyShisha.Types;
 using System.Collections;
+using System.Diagnostics.CodeAnalysis;
 using Unity.Netcode;
 using UnityEngine;
 using Logger = BepInEx.Logging.Logger;
@@ -104,21 +106,30 @@ public class ShishaPoopBehaviour : PhysicsProp
     public override void EquipItem()
     {
         base.EquipItem();
-        if (_isPartOfShisha.Value)
-        {
-            if (IsServer) _isPartOfShisha.Value = false;
-            else SetIsPartOfShishaServerRpc(false);
-        }
+        EvaluateIsPartOfShisha();
     }
 
     public override void GrabItem()
     {
         base.GrabItem();
-        if (_isPartOfShisha.Value)
-        {
-            if (IsServer) _isPartOfShisha.Value = false;
-            else SetIsPartOfShishaServerRpc(false);
-        }
+        EvaluateIsPartOfShisha();
+    }
+
+    private void EvaluateIsPartOfShisha()
+    {
+        if (!_isPartOfShisha.Value) return;
+        
+        if (IsServer) _isPartOfShisha.Value = false;
+        else SetIsPartOfShishaServerRpc(false);
+    }
+    
+    [HarmonyPatch(typeof(BeltBagItem), nameof(BeltBagItem.PutObjectInBagLocalClient))]
+    [HarmonyPostfix]
+    [SuppressMessage("ReSharper", "InconsistentNaming")]
+    private static void TriggerHeldActions(BeltBagItem __instance, GrabbableObject gObject)
+    {
+        if (gObject is ShishaPoopBehaviour shishaPoop)
+            shishaPoop.EquipItem();
     }
 
     private static int CalculateScrapValue(int variant)

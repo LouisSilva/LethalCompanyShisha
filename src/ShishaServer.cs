@@ -121,9 +121,9 @@ public class ShishaServer : EnemyAI
 
     public override void Update()
     {
+        if (isEnemyDead) return;
         base.Update();
         if (!IsServer) return;
-        if (isEnemyDead) return;
         
         _takeDamageCooldown -= Time.deltaTime;
         
@@ -200,7 +200,7 @@ public class ShishaServer : EnemyAI
     {
         while (true)
         {
-            if (!IsPlayerLookingAtShisha(120f, 80, 3f))
+            if (!IsPlayerLookingAtShisha(120f, 80))
             {
                 KillEnemyServerRpc(false);
                 Destroy(gameObject);

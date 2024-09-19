@@ -2,7 +2,6 @@
 using GameNetcodeStuff;
 using LethalCompanyShisha.CustomStateMachineBehaviours;
 using LethalCompanyShisha.Types;
-using System;
 using System.Collections;
 using System.Collections.Generic;
 using Unity.Netcode;
@@ -16,9 +15,9 @@ public class ShishaClient : MonoBehaviour
 {
     private ManualLogSource _mls;
     private string _shishaId;
-    
-    public static readonly int IsRunning = Animator.StringToHash("Run");
-    public static readonly int IsWalking = Animator.StringToHash("Walk");
+
+    private static readonly int IsRunning = Animator.StringToHash("Run");
+    private static readonly int IsWalking = Animator.StringToHash("Walk");
     public static readonly int IsDead = Animator.StringToHash("Dead");
     public static readonly int ForceWalk = Animator.StringToHash("ForceWalk");
     private static readonly int WalkSpeed = Animator.StringToHash("WalkSpeed");
@@ -51,9 +50,7 @@ public class ShishaClient : MonoBehaviour
     public AudioClip[] walkingAudioClips;
     [Tooltip("The interval between playing walking audio clips.")]
     public float walkingAudioInterval = 0.5f;
-    
-    [SerializeField] private float rayLength = 0.5f;
-    
+
     private Animator _animator;
     
     private readonly NullableObject<ShishaNetcodeController> _netcodeController = new();

@@ -65,6 +65,7 @@ public class ShishaPlugin : BaseUnityPlugin
         
         _harmony.PatchAll();
         _harmony.PatchAll(typeof(ShishaPlugin));
+        _harmony.PatchAll(typeof(ShishaPoopBehaviour));
         Mls.LogInfo($"Plugin {ModName} is loaded!");
     }
     
