@@ -53,14 +53,14 @@ public class ShishaConfig : SyncedInstance<ShishaConfig>
             true,
             "When enabled, the Shisha will only wander around its spawn point within a radius defined by the Wander Radius. If disabled, the Shisha can wander from any point within the Wander Radius."
         );
-        
+
         Killable = cfg.Bind(
             "General",
             "Killable",
             true,
             "Whether the Shisha can be killed."
         );
-        
+
         Health = cfg.Bind(
             "General",
             "Health",
@@ -81,7 +81,7 @@ public class ShishaConfig : SyncedInstance<ShishaConfig>
             5f,
             "The maximum acceleration of the Shisha."
         );
-        
+
         RunningAwayMaxSpeed = cfg.Bind(
             "General",
             "Running Away Max Speed",

@@ -15,11 +15,11 @@ public class ShishaPoopBehaviour : PhysicsProp
 {
     private ManualLogSource _mls;
     private string _poopId;
-    
+
     public MeshFilter meshFilter;
     public Mesh[] poopMeshVariants;
     public Material[] poopMaterialVariants;
-    
+
     private bool _networkEventsSubscribed;
     private bool _loadedVariantFromSave;
 
@@ -36,7 +36,7 @@ public class ShishaPoopBehaviour : PhysicsProp
     {
         _networkObject = new CachedValue<NetworkObject>(GetComponent<NetworkObject>, true);
     }
-    
+
     private void OnEnable()
     {
         SubscribeToNetworkEvents();
@@ -64,19 +64,14 @@ public class ShishaPoopBehaviour : PhysicsProp
             {
                 _variantIndex.Value = GetRandomVariantIndex();
                 _scrapValue.Value = CalculateScrapValue(_variantIndex.Value);
-                _isPartOfShisha.Value = true; 
+                _isPartOfShisha.Value = true;
             }
         }
     }
 
     public override void Update()
     {
-        if (isHeld && _isPartOfShisha.Value)
-        {
-            if (IsServer) _isPartOfShisha.Value = false;
-            else SetIsPartOfShishaServerRpc(false);
-        }
-        
+        if (isHeld) EvaluateIsPartOfShisha();
         if (_isPartOfShisha.Value) return;
         base.Update();
     }
@@ -90,17 +85,11 @@ public class ShishaPoopBehaviour : PhysicsProp
                 transform.position = transform.parent.position;
                 transform.rotation = transform.parent.rotation;
             }
-            
+
             return;
         }
-        
-        base.LateUpdate();
-    }
 
-    [ServerRpc(RequireOwnership = false)]
-    private void SetIsPartOfShishaServerRpc(bool value)
-    {
-        _isPartOfShisha.Value = value;
+        base.LateUpdate();
     }
 
     public override void EquipItem()
@@ -115,14 +104,20 @@ public class ShishaPoopBehaviour : PhysicsProp
         EvaluateIsPartOfShisha();
     }
 
+    [ServerRpc(RequireOwnership = false)]
+    private void SetIsPartOfShishaServerRpc(bool value)
+    {
+        _isPartOfShisha.Value = value;
+    }
+
     private void EvaluateIsPartOfShisha()
     {
         if (!_isPartOfShisha.Value) return;
-        
+
         if (IsServer) _isPartOfShisha.Value = false;
         else SetIsPartOfShishaServerRpc(false);
     }
-    
+
     [HarmonyPatch(typeof(BeltBagItem), nameof(BeltBagItem.PutObjectInBagLocalClient))]
     [HarmonyPostfix]
     [SuppressMessage("ReSharper", "InconsistentNaming")]
@@ -136,16 +131,20 @@ public class ShishaPoopBehaviour : PhysicsProp
     {
         return variant switch
         {
-            0 => Random.Range(ShishaConfig.Instance.CommonCrystalMinValue.Value, ShishaConfig.Instance.CommonCrystalMaxValue.Value + 1),
-            1 => Random.Range(ShishaConfig.Instance.UncommonCrystalMinValue.Value, ShishaConfig.Instance.UncommonCrystalMaxValue.Value + 1),
-            2 => Random.Range(ShishaConfig.Instance.RareCrystalMinValue.Value, ShishaConfig.Instance.RareCrystalMaxValue.Value + 1),
+            0 => Random.Range(ShishaConfig.Instance.CommonCrystalMinValue.Value,
+                ShishaConfig.Instance.CommonCrystalMaxValue.Value + 1),
+            1 => Random.Range(ShishaConfig.Instance.UncommonCrystalMinValue.Value,
+                ShishaConfig.Instance.UncommonCrystalMaxValue.Value + 1),
+            2 => Random.Range(ShishaConfig.Instance.RareCrystalMinValue.Value,
+                ShishaConfig.Instance.RareCrystalMaxValue.Value + 1),
             _ => 1
         };
     }
 
     private void ApplyVariant(int chosenVariantIndex)
     {
-        if (poopMaterialVariants.Length > 0 && poopMeshVariants.Length > 0 && poopMaterialVariants.Length == poopMeshVariants.Length)
+        if (poopMaterialVariants.Length > 0 && poopMeshVariants.Length > 0 &&
+            poopMaterialVariants.Length == poopMeshVariants.Length)
         {
             mainObjectRenderer.material = poopMaterialVariants[chosenVariantIndex];
             meshFilter.mesh = poopMeshVariants[chosenVariantIndex];
@@ -162,7 +161,7 @@ public class ShishaPoopBehaviour : PhysicsProp
         int commonCrystalChance = ShishaConfig.Instance.CommonCrystalChance.Value;
         int uncommonCrystalChance = ShishaConfig.Instance.UncommonCrystalChance.Value;
         int rareCrystalChance = ShishaConfig.Instance.RareCrystalChance.Value;
-        
+
         if (commonCrystalChance + uncommonCrystalChance + rareCrystalChance != 100)
         {
             commonCrystalChance = 65;
@@ -198,7 +197,7 @@ public class ShishaPoopBehaviour : PhysicsProp
         grabbable = !newValue;
         fallTime = !newValue ? 1f : 0f;
     }
-    
+
     public override int GetItemDataToSave()
     {
         return int.Parse($"{_variantIndex.Value + 1}{Mathf.Max(_scrapValue.Value, 0)}");
@@ -234,7 +233,7 @@ public class ShishaPoopBehaviour : PhysicsProp
         _mls?.Dispose();
         _mls = Logger.CreateLogSource($"{ShishaPlugin.ModGuid} | Shisha Poop {_poopId}");
     }
-    
+
     private void SubscribeToNetworkEvents()
     {
         if (_networkEventsSubscribed) return;
@@ -245,22 +244,22 @@ public class ShishaPoopBehaviour : PhysicsProp
 
         _networkEventsSubscribed = true;
     }
-    
+
     private void UnsubscribeFromNetworkEvents()
     {
         if (!_networkEventsSubscribed) return;
-        
+
         _variantIndex.OnValueChanged -= OnVariantIndexChanged;
         _isPartOfShisha.OnValueChanged -= OnIsPartOfShishaChanged;
         _scrapValue.OnValueChanged -= OnScrapValueChanged;
 
         _networkEventsSubscribed = false;
     }
-    
+
     private void LogDebug(string msg)
     {
-        #if DEBUG
+#if DEBUG
         _mls?.LogInfo(msg);
-        #endif
+#endif
     }
 }

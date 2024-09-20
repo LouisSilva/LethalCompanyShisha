@@ -9,7 +9,7 @@ namespace LethalCompanyShisha.Types;
 public class NullableObject<T>
 {
     private T _value;
-    
+
     /// <summary>
     /// Gets a value indicating whether the object holds a non-null or non-default value.
     /// </summary>

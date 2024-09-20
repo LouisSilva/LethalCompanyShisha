@@ -9,7 +9,7 @@ public class BaseStateMachineBehaviour : StateMachineBehaviour
 {
     private ManualLogSource _mls;
     protected string ShishaId;
-    
+
     protected readonly NullableObject<ShishaNetcodeController> NetcodeController = new();
 
     private bool _networkEventsSubscribed;
@@ -36,10 +36,10 @@ public class BaseStateMachineBehaviour : StateMachineBehaviour
         _mls?.Dispose();
         _mls = Logger.CreateLogSource(
             $"Shisha Animation State Behaviour {ShishaId}");
-        
+
         LogDebug("Successfully synced shisha identifier.");
     }
-    
+
     private void SubscribeToNetworkEvents()
     {
         if (_networkEventsSubscribed || !NetcodeController.IsNotNull) return;
@@ -53,11 +53,11 @@ public class BaseStateMachineBehaviour : StateMachineBehaviour
         NetcodeController.Value.OnSyncShishaIdentifier -= HandleSyncShishaIdentifier;
         _networkEventsSubscribed = false;
     }
-    
+
     protected void LogDebug(string msg)
     {
-        #if DEBUG
+#if DEBUG
         _mls?.LogInfo(msg);
-        #endif
+#endif
     }
 }

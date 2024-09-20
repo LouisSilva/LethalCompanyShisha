@@ -33,30 +33,31 @@ public class ShishaServer : EnemyAI
         RunningAway,
         Dead,
     }
-    
+
 #pragma warning disable 0649
     [SerializeField] private AISearchRoutine roamSearchRoutine;
     [SerializeField] private Transform poopPlaceholder;
 #pragma warning restore 0649
 
-    [Header("Movement")]
-    [Tooltip("Toggle whether the creature is allowed to wander or not.")]
+    [Header("Movement")] [Tooltip("Toggle whether the creature is allowed to wander or not.")]
     public bool wanderEnabled = true;
+
     [Tooltip("When enabled, the creature will only wander around its spawn point within a radius defined by the Wander Radius. If disabled, the creature can wander from any point within the Wander Radius.")]
     public bool anchoredWandering = true;
-    [Tooltip("The maximum speed of the creature.")]
-    public float maxSpeed = 4f;
-    [Tooltip("The maximum acceleration of the creature.")]
-    public float maxAcceleration = 5f;
+
+    [Tooltip("The maximum speed of the creature.")] public float maxSpeed = 4f;
+    [Tooltip("The maximum acceleration of the creature.")] public float maxAcceleration = 5f;
+
     [Tooltip("The creature will wander for a random duration within this range before going to an idle state.")]
     public Vector2 wanderTimeRange = new(5f, 45f);
+
     public Vector2 ambientSfxTimerRange = new(7.5f, 40f);
     public float poopChance = 0.05f;
     public float runningAwayMaxSpeed = 4f;
     public float runningAwayMaxAcceleration = 8f;
-    
+
     public const ulong NullPlayerId = 69420;
-    
+
     private ShishaNetcodeController _netcodeController;
 
     private float _wanderTimer;
@@ -82,7 +83,7 @@ public class ShishaServer : EnemyAI
     {
         SubscribeToNetworkEvents();
     }
-    
+
     private void OnDisable()
     {
         UnsubscribeFromNetworkEvents();
@@ -92,7 +93,7 @@ public class ShishaServer : EnemyAI
     {
         base.Start();
         if (!IsServer) return;
-        
+
         _shishaId = Guid.NewGuid().ToString();
         _mls = Logger.CreateLogSource($"{ShishaPlugin.ModGuid} | Shisha Server {_shishaId}");
 
@@ -106,15 +107,15 @@ public class ShishaServer : EnemyAI
             Destroy(gameObject);
             return;
         }
-        
+
         Random.InitState(StartOfRound.Instance.randomMapSeed + _shishaId.GetHashCode() - thisEnemyIndex);
         _netcodeController.SyncShishaIdentifierClientRpc(_shishaId);
         InitializeConfigValues();
-        
+
         allAINodes = GameObject.FindGameObjectsWithTag("OutsideAINode");
         _spawnPosition = transform.position;
         _numberOfAmbientAudioClips = GetComponent<ShishaClient>().ambientAudioClips.Length;
-            
+
         if (wanderEnabled) InitializeState((int)States.Roaming);
         LogDebug("Shisha spawned!");
     }
@@ -124,11 +125,11 @@ public class ShishaServer : EnemyAI
         if (isEnemyDead) return;
         base.Update();
         if (!IsServer) return;
-        
+
         _takeDamageCooldown -= Time.deltaTime;
-        
+
         if (!wanderEnabled) return;
-        
+
         switch (currentBehaviourStateIndex)
         {
             case (int)States.Roaming:
@@ -139,7 +140,7 @@ public class ShishaServer : EnemyAI
                     SwitchBehaviourState((int)States.Idle);
                     break;
                 }
-                
+
                 MoveWithAcceleration();
                 break;
             }
@@ -148,7 +149,7 @@ public class ShishaServer : EnemyAI
             {
                 agent.speed = 0f;
                 transform.position = _idlePosition;
-                
+
                 break;
             }
 
@@ -158,12 +159,12 @@ public class ShishaServer : EnemyAI
                 break;
             }
         }
-        
+
         _ambientAudioTimer -= Time.deltaTime;
         if (_ambientAudioTimer <= 0)
         {
             _ambientAudioTimer = Random.Range(ambientSfxTimerRange.x, ambientSfxTimerRange.y);
-            if (_numberOfAmbientAudioClips == 0) return; 
+            if (_numberOfAmbientAudioClips == 0) return;
             _netcodeController.PlayAmbientSfxClientRpc(_shishaId, Random.Range(0, _numberOfAmbientAudioClips));
         }
     }
@@ -182,7 +183,7 @@ public class ShishaServer : EnemyAI
                 {
                     SwitchBehaviourState(wanderEnabled ? (int)States.Roaming : (int)States.Idle);
                 }
-                
+
                 break;
             }
         }
@@ -210,26 +211,26 @@ public class ShishaServer : EnemyAI
             yield return new WaitForSeconds(checkIntervalTimer);
         }
     }
-    
+
     private bool IsPlayerLookingAtShisha(
-        float playerViewWidth = 30f, 
-        int playerViewRange = 60, 
+        float playerViewWidth = 30f,
+        int playerViewRange = 60,
         float playerProximityAwareness = 3f)
     {
         return StartOfRound.Instance.allPlayerScripts.Where(player => !player.isPlayerDead)
             .Any(player => player.HasLineOfSightToPosition(
-                transform.position + Vector3.up * 0.5f, 
+                transform.position + Vector3.up * 0.5f,
                 playerViewWidth,
                 playerViewRange,
                 playerProximityAwareness
-                ));
+            ));
     }
-    
+
     private void MoveWithAcceleration()
     {
         float speedAdjustment = Time.deltaTime / 2f;
         agent.speed = Mathf.Lerp(agent.speed, _agentMaxSpeed, speedAdjustment);
-        
+
         float accelerationAdjustment = Time.deltaTime;
         agent.acceleration = Mathf.Lerp(agent.acceleration, _agentMaxAcceleration, accelerationAdjustment);
     }
@@ -244,7 +245,7 @@ public class ShishaServer : EnemyAI
                 _agentMaxSpeed = maxSpeed;
                 _agentMaxAcceleration = maxAcceleration;
                 _wanderTimer = Random.Range(wanderTimeRange.x, wanderTimeRange.y);
-                
+
                 StartSearch(anchoredWandering ? _spawnPosition : transform.position, roamSearchRoutine);
                 break;
             }
@@ -257,10 +258,10 @@ public class ShishaServer : EnemyAI
                 _agentMaxAcceleration = maxAcceleration;
                 moveTowardsDestination = false;
                 _idlePosition = transform.position;
-                
+
                 if (roamSearchRoutine.inProgress) StopSearch(roamSearchRoutine);
                 PickRandomIdleAnimation();
-                
+
                 break;
             }
 
@@ -271,7 +272,7 @@ public class ShishaServer : EnemyAI
                 agent.acceleration *= 1.25f;
                 _agentMaxSpeed = runningAwayMaxSpeed;
                 _agentMaxAcceleration = runningAwayMaxAcceleration;
-                
+
                 break;
             }
 
@@ -285,7 +286,7 @@ public class ShishaServer : EnemyAI
                 _agentMaxAcceleration = 100f;
                 moveTowardsDestination = false;
                 KillEnemyServerRpc(false);
-                
+
                 break;
             }
         }
@@ -299,7 +300,7 @@ public class ShishaServer : EnemyAI
         SwitchBehaviourState((int)States.Roaming);
         _netcodeController.SetAnimationTriggerClientRpc(_shishaId, ShishaClient.ForceWalk);
     }
-    
+
     private void PickRandomIdleAnimation()
     {
         if (!IsServer) return;
@@ -320,13 +321,13 @@ public class ShishaServer : EnemyAI
                 2 => ShishaClient.Idle2,
                 _ => 0,
             };
-        
+
             if (animationIdToPlay == 0)
             {
                 LogDebug($"Unable to play animation with random number: {animationToPlay}");
                 return;
             }
-        
+
             LogDebug($"Playing animation with id: ({animationToPlay}, {animationIdToPlay})");
             _netcodeController.SetAnimationTriggerClientRpc(_shishaId, animationIdToPlay);
         }
@@ -335,7 +336,7 @@ public class ShishaServer : EnemyAI
     private void SpawnShishaPoop()
     {
         if (!IsServer) return;
-        
+
         if (poopPlaceholder == null)
         {
             _mls.LogError("PoopBehaviour is null, this should not happen.");
@@ -347,22 +348,23 @@ public class ShishaServer : EnemyAI
             poopPlaceholder.position,
             poopPlaceholder.rotation,
             poopPlaceholder);
-        
+
         ShishaPoopBehaviour poopBehaviour = poopObject.GetComponent<ShishaPoopBehaviour>();
         poopObject.GetComponent<NetworkObject>().Spawn();
         _netcodeController.SpawnShishaPoopClientRpc(_shishaId, poopObject);
     }
-    
-    public override void HitEnemy(int force = 1, PlayerControllerB playerWhoHit = null, bool playHitSFX = false, int hitId = -1)
+
+    public override void HitEnemy(int force = 1, PlayerControllerB playerWhoHit = null, bool playHitSFX = false,
+        int hitId = -1)
     {
         base.HitEnemy(force, playerWhoHit, playHitSFX, hitId);
         if (!IsServer) return;
         if (isEnemyDead || currentBehaviourStateIndex == (int)States.Dead || !_killable) return;
         if (_takeDamageCooldown > 0) return;
-        
+
         enemyHP -= force;
         _takeDamageCooldown = 0.03f;
-        
+
         if (enemyHP > 0)
         {
             _runAwayTransform = GetFarthestValidNodeFromPosition(out PathStatus pathStatus,
@@ -370,7 +372,7 @@ public class ShishaServer : EnemyAI
                 playerWhoHit == null ? transform.position : playerWhoHit.transform.position,
                 allAINodes
             );
-            
+
             if (pathStatus == PathStatus.Invalid) SwitchBehaviourState((int)States.Roaming);
             else
             {
@@ -380,11 +382,12 @@ public class ShishaServer : EnemyAI
         }
         else
         {
-            _netcodeController.TargetPlayerClientId.Value = playerWhoHit == null ? NullPlayerId : playerWhoHit.actualClientId;
+            _netcodeController.TargetPlayerClientId.Value =
+                playerWhoHit == null ? NullPlayerId : playerWhoHit.actualClientId;
             SwitchBehaviourState((int)States.Dead);
         }
     }
-    
+
     /// <summary>
     /// Gets the farthest valid AI node from the specified position that the NavMeshAgent can path to.
     /// </summary>
@@ -410,18 +413,18 @@ public class ShishaServer : EnemyAI
         ManualLogSource logSource = null)
     {
         return GetValidNodeFromPosition(
-            findClosest: false, 
-            pathStatus:out pathStatus, 
-            agent: agent, 
-            position: position, 
-            allAINodes: allAINodes, 
-            ignoredAINodes: ignoredAINodes, 
-            checkLineOfSight: checkLineOfSight, 
-            allowFallbackIfBlocked: allowFallbackIfBlocked, 
-            bufferDistance: bufferDistance, 
+            findClosest: false,
+            pathStatus: out pathStatus,
+            agent: agent,
+            position: position,
+            allAINodes: allAINodes,
+            ignoredAINodes: ignoredAINodes,
+            checkLineOfSight: checkLineOfSight,
+            allowFallbackIfBlocked: allowFallbackIfBlocked,
+            bufferDistance: bufferDistance,
             logSource: logSource);
     }
-    
+
     /// <summary>
     /// Gets a valid AI node from the specified position that the NavMeshAgent can path to.
     /// </summary>
@@ -447,14 +450,15 @@ public class ShishaServer : EnemyAI
         bool allowFallbackIfBlocked,
         float bufferDistance,
         ManualLogSource logSource
-        )
+    )
     {
         HashSet<GameObject> ignoredNodesSet = ignoredAINodes == null ? [] : [..ignoredAINodes];
-        
+
         List<GameObject> aiNodes = allAINodes
-            .Where(node => !ignoredNodesSet.Contains(node) && Vector3.Distance(position, node.transform.position) > bufferDistance)
+            .Where(node =>
+                !ignoredNodesSet.Contains(node) && Vector3.Distance(position, node.transform.position) > bufferDistance)
             .ToList();
-        
+
         aiNodes.Sort((a, b) =>
         {
             float distanceA = Vector3.Distance(position, a.transform.position);
@@ -477,7 +481,7 @@ public class ShishaServer : EnemyAI
                 {
                     if (fallbackNode == node) continue;
                     PathStatus fallbackStatus = IsPathValid(
-                        agent, 
+                        agent,
                         fallbackNode.transform.position,
                         logSource: logSource);
 
@@ -493,7 +497,7 @@ public class ShishaServer : EnemyAI
         pathStatus = PathStatus.Invalid;
         return null;
     }
-    
+
     /// <summary>
     /// Checks if the AI can construct a valid path to the given position.
     /// </summary>
@@ -504,10 +508,10 @@ public class ShishaServer : EnemyAI
     /// <param name="logSource">The logger to use for debug logs, can be null.</param>
     /// <returns>Returns true if the agent can path to the position within the buffer distance or if a valid path exists; otherwise, false.</returns>
     private static PathStatus IsPathValid(
-        NavMeshAgent agent, 
-        Vector3 position, 
-        bool checkLineOfSight = false, 
-        float bufferDistance = 0f, 
+        NavMeshAgent agent,
+        Vector3 position,
+        bool checkLineOfSight = false,
+        float bufferDistance = 0f,
         ManualLogSource logSource = null)
     {
         // Check if the desired location is within the buffer distance
@@ -516,7 +520,7 @@ public class ShishaServer : EnemyAI
             //LogDebug(logSource, $"Target position {position} is within buffer distance {bufferDistance}.");
             return PathStatus.Valid;
         }
-        
+
         NavMeshPath path = new();
 
         // Calculate path to the target position
@@ -534,9 +538,10 @@ public class ShishaServer : EnemyAI
         // Check if any segment of the path is intersected by line of sight
         if (checkLineOfSight)
         {
-            if (Vector3.Distance(path.corners[^1], RoundManager.Instance.GetNavMeshPosition(position, RoundManager.Instance.navHit, 2.7f)) > 1.5)
+            if (Vector3.Distance(path.corners[^1],
+                    RoundManager.Instance.GetNavMeshPosition(position, RoundManager.Instance.navHit, 2.7f)) > 1.5)
                 return PathStatus.ValidButInLos;
-            
+
             for (int i = 1; i < path.corners.Length; ++i)
             {
                 if (Physics.Linecast(path.corners[i - 1], path.corners[i], 262144))
@@ -552,7 +557,7 @@ public class ShishaServer : EnemyAI
     private void InitializeConfigValues()
     {
         if (!IsServer) return;
-        
+
         float wanderTimeMin = Mathf.Clamp(ShishaConfig.Instance.WanderTimeMin.Value, 0f, 500f);
         float ambientSfxTimeMin = Mathf.Clamp(ShishaConfig.Instance.AmbientSfxTimerMin.Value, 0f, 500f);
         roamSearchRoutine.loopSearch = true;
@@ -584,7 +589,7 @@ public class ShishaServer : EnemyAI
         InitializeState(state);
         LogDebug($"Switch to behaviour state {state} complete!");
     }
-    
+
     private void HandleTargetPlayerChanged(ulong oldValue, ulong newValue)
     {
         _actualTargetPlayer.Value = newValue == NullPlayerId ? null : StartOfRound.Instance.allPlayerScripts[newValue];
@@ -593,35 +598,35 @@ public class ShishaServer : EnemyAI
             ? $"Changed target player to {_actualTargetPlayer.Value?.playerUsername}."
             : "Changed target player to null.");
     }
-    
+
     private void SubscribeToNetworkEvents()
     {
         if (!IsServer || _networkEventsSubscribed) return;
-        
+
         _netcodeController.OnIdleCompleteStateBehaviourCallback += HandleIdleCompleteStateBehaviourCallback;
-        
+
         _netcodeController.TargetPlayerClientId.OnValueChanged += HandleTargetPlayerChanged;
 
         _networkEventsSubscribed = true;
     }
 
-    
+
     private void UnsubscribeFromNetworkEvents()
     {
         if (!IsServer || !_networkEventsSubscribed) return;
-        
+
         _netcodeController.OnIdleCompleteStateBehaviourCallback -= HandleIdleCompleteStateBehaviourCallback;
-        
+
         _netcodeController.TargetPlayerClientId.OnValueChanged -= HandleTargetPlayerChanged;
 
         _networkEventsSubscribed = false;
     }
-    
+
     private void LogDebug(string msg)
     {
-        #if DEBUG
+#if DEBUG
         if (!IsServer) return;
         _mls?.LogInfo(msg);
-        #endif
+#endif
     }
 }
