@@ -3,7 +3,9 @@ using BepInEx.Logging;
 using HarmonyLib;
 using LethalCompanyShisha.Types;
 using System.Collections;
+using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
+using System.Linq;
 using Unity.Netcode;
 using UnityEngine;
 using Logger = BepInEx.Logging.Logger;
@@ -49,7 +51,20 @@ public class ShishaPoopBehaviour : PhysicsProp
 
     public override void Start()
     {
+        // Doing this prop collider stuff is needed because if not, the start method breaks the custom cola physics.
+        // I also can't just not use the base.Start(), because it breaks compatibility with mods.
+        propColliders = gameObject.GetComponentsInChildren<Collider>();
+        List<LayerMask> propCollidersExcludeLayersBeforeStart = new(propColliders.Length);
+        propCollidersExcludeLayersBeforeStart.AddRange(propColliders.Select(propCollider => propCollider.excludeLayers));
+        
         base.Start();
+        
+        for (int index = 0; index < propColliders.Length; ++index)
+        {
+            if (index < propCollidersExcludeLayersBeforeStart.Count)
+                propColliders[index].excludeLayers = propCollidersExcludeLayersBeforeStart[index];
+        }
+        
         _scanNode = new CachedValue<ScanNodeProperties>(GetComponentInChildren<ScanNodeProperties>, true);
         SubscribeToNetworkEvents();
 
@@ -113,9 +128,11 @@ public class ShishaPoopBehaviour : PhysicsProp
     private void EvaluateIsPartOfShisha()
     {
         if (!_isPartOfShisha.Value) return;
-
         if (IsServer) _isPartOfShisha.Value = false;
         else SetIsPartOfShishaServerRpc(false);
+        
+        foreach (Collider propCollider in propColliders)
+            propCollider.excludeLayers = -2621449;
     }
 
     [HarmonyPatch(typeof(BeltBagItem), nameof(BeltBagItem.PutObjectInBagLocalClient))]

@@ -25,6 +25,7 @@ public class ShishaClient : MonoBehaviour
     public static readonly int Idle1 = Animator.StringToHash("Idle1");
     public static readonly int Idle2 = Animator.StringToHash("Idle2");
     public static readonly int Poo = Animator.StringToHash("Poo");
+    private static readonly int GotHit = Animator.StringToHash("GotHit");
 
 #pragma warning disable 0649
     [SerializeField] private AudioSource creatureVoice;
@@ -66,7 +67,6 @@ public class ShishaClient : MonoBehaviour
     private float _walkingAudioTimer;
 
     private int _currentBehaviourStateIndex;
-    private static readonly int GotHit = Animator.StringToHash("GotHit");
 
     private void OnEnable()
     {
@@ -102,8 +102,6 @@ public class ShishaClient : MonoBehaviour
         _agentCurrentSpeed = Mathf.Lerp(_agentCurrentSpeed, (position - _agentLastPosition).magnitude / Time.deltaTime,
             0.75f);
         _agentLastPosition = position;
-
-        // AdjustRotationToSlope();
 
         switch (_currentBehaviourStateIndex)
         {
@@ -173,15 +171,25 @@ public class ShishaClient : MonoBehaviour
     public void OnAnimationEventDropShishaPoop()
     {
         if (_currentPoop == null) return;
+        
+        // Vector3 dropVector = _currentPoop.GetItemFloorPosition();
+        // Vector3 targetFloorPosition = StartOfRound.Instance.propsContainer.InverseTransformPoint(dropVector);
 
+        _currentPoop.heldByPlayerOnServer = false;
         _currentPoop.parentObject = null;
         _currentPoop.transform.SetParent(StartOfRound.Instance.propsContainer, true);
         _currentPoop.EnablePhysics(true);
-        _currentPoop.FallToGround(true);
-        _currentPoop.transform.SetParent(RoundManager.Instance.spawnedScrapContainer, true);
         _currentPoop.isHeld = false;
+        _currentPoop.isPocketed = false;
+        // _currentPoop.fallTime = 0.0f;
+        // _currentPoop.startFallingPosition =
+        //     _currentPoop.transform.parent.InverseTransformPoint(_currentPoop.transform.position);
+        // _currentPoop.targetFloorPosition = targetFloorPosition;
         _currentPoop.grabbable = true;
         _currentPoop.grabbableToEnemies = true;
+        
+        Rigidbody poopRigidBody = _currentPoop.GetComponent<Rigidbody>();
+        poopRigidBody.isKinematic = false;
     }
 
     public void OnAnimationEventDeathAnimationComplete()
