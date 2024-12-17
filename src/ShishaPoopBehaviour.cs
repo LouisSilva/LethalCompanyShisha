@@ -16,9 +16,9 @@ public class ShishaPoopBehaviour : PhysicsProp
     private ManualLogSource _mls;
     private string _poopId;
 
-    public MeshFilter meshFilter;
-    public Mesh[] poopMeshVariants;
-    public Material[] poopMaterialVariants;
+    [SerializeField] public MeshFilter meshFilter;
+    [SerializeField] public Mesh[] poopMeshVariants;
+    [SerializeField] public Material[] poopMaterialVariants;
 
     private bool _networkEventsSubscribed;
     private bool _loadedVariantFromSave;
@@ -215,6 +215,7 @@ public class ShishaPoopBehaviour : PhysicsProp
 
     private IEnumerator ApplyItemSaveData(int loadedVariantIndex, int loadedScrapValue)
     {
+        if (!IsOwner) yield break;
         while (!_networkObject.Value.IsSpawned)
         {
             yield return null;
@@ -226,7 +227,7 @@ public class ShishaPoopBehaviour : PhysicsProp
     }
 
     [ClientRpc]
-    public void SyncPoopIdClientRpc(string poopId)
+    private void SyncPoopIdClientRpc(string poopId)
     {
         if (IsServer) return;
         _poopId = poopId;

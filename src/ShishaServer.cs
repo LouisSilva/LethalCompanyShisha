@@ -26,7 +26,7 @@ public class ShishaServer : EnemyAI
         Unknown,
     }
 
-    public enum States
+    internal enum States
     {
         Roaming,
         Idle,
@@ -56,7 +56,7 @@ public class ShishaServer : EnemyAI
     public float runningAwayMaxSpeed = 4f;
     public float runningAwayMaxAcceleration = 8f;
 
-    public const ulong NullPlayerId = 69420;
+    internal const ulong NullPlayerId = 69420;
 
     private ShishaNetcodeController _netcodeController;
 
@@ -348,8 +348,7 @@ public class ShishaServer : EnemyAI
             poopPlaceholder.position,
             poopPlaceholder.rotation,
             poopPlaceholder);
-
-        ShishaPoopBehaviour poopBehaviour = poopObject.GetComponent<ShishaPoopBehaviour>();
+        
         poopObject.GetComponent<NetworkObject>().Spawn();
         _netcodeController.SpawnShishaPoopClientRpc(_shishaId, poopObject);
     }

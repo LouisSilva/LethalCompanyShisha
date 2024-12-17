@@ -6,49 +6,49 @@ namespace LethalCompanyShisha;
 
 public class ShishaNetcodeController : NetworkBehaviour
 {
-    public event Action<string> OnSyncShishaIdentifier;
-    public event Action<string> OnIdleCompleteStateBehaviourCallback;
-    public event Action<string, int> OnSetAnimationTrigger;
-    public event Action<string, NetworkObjectReference> OnSpawnShishaPoop;
-    public event Action<string, int> OnPlayAmbientSfx;
+    internal event Action<string> OnSyncShishaIdentifier;
+    internal event Action<string> OnIdleCompleteStateBehaviourCallback;
+    internal event Action<string, int> OnSetAnimationTrigger;
+    internal event Action<string, NetworkObjectReference> OnSpawnShishaPoop;
+    internal event Action<string, int> OnPlayAmbientSfx;
 
-    public event Action<string, int, bool> OnSetAnimationBool;
+    internal event Action<string, int, bool> OnSetAnimationBool;
 
-    [HideInInspector] public readonly NetworkVariable<int> CurrentBehaviourStateIndex = new();
-    [HideInInspector] public readonly NetworkVariable<ulong> TargetPlayerClientId = new();
+    [HideInInspector] internal readonly NetworkVariable<int> CurrentBehaviourStateIndex = new();
+    [HideInInspector] internal readonly NetworkVariable<ulong> TargetPlayerClientId = new();
 
     [ClientRpc]
-    public void PlayAmbientSfxClientRpc(string receivedShishaId, int clipIndex)
+    internal void PlayAmbientSfxClientRpc(string receivedShishaId, int clipIndex)
     {
         OnPlayAmbientSfx?.Invoke(receivedShishaId, clipIndex);
     }
 
     [ClientRpc]
-    public void SpawnShishaPoopClientRpc(string receivedShishaId, NetworkObjectReference poopNetworkObjectReference)
+    internal void SpawnShishaPoopClientRpc(string receivedShishaId, NetworkObjectReference poopNetworkObjectReference)
     {
         OnSpawnShishaPoop?.Invoke(receivedShishaId, poopNetworkObjectReference);
     }
 
     [ClientRpc]
-    public void SetAnimationTriggerClientRpc(string receivedShishaId, int animationId)
+    internal void SetAnimationTriggerClientRpc(string receivedShishaId, int animationId)
     {
         OnSetAnimationTrigger?.Invoke(receivedShishaId, animationId);
     }
 
     [ClientRpc]
-    public void SetAnimationBoolClientRpc(string receivedShishaId, int animationId, bool value)
+    internal void SetAnimationBoolClientRpc(string receivedShishaId, int animationId, bool value)
     {
         OnSetAnimationBool?.Invoke(receivedShishaId, animationId, value);
     }
 
     [ServerRpc(RequireOwnership = false)]
-    public void IdleCompleteStateBehaviourCallbackServerRpc(string receivedShishaId)
+    internal void IdleCompleteStateBehaviourCallbackServerRpc(string receivedShishaId)
     {
         OnIdleCompleteStateBehaviourCallback?.Invoke(receivedShishaId);
     }
 
     [ClientRpc]
-    public void SyncShishaIdentifierClientRpc(string receivedShishaId)
+    internal void SyncShishaIdentifierClientRpc(string receivedShishaId)
     {
         OnSyncShishaIdentifier?.Invoke(receivedShishaId);
     }

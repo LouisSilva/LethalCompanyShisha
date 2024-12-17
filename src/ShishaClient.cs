@@ -154,6 +154,7 @@ public class ShishaClient : MonoBehaviour
         AudioClip ambientAudioClipToPlay = ambientAudioClips[clipIndex];
         creatureVoice.PlayOneShot(ambientAudioClipToPlay);
         WalkieTalkie.TransmitOneShotAudio(creatureVoice, ambientAudioClipToPlay, ambientAudioVolume);
+        RoundManager.Instance.PlayAudibleNoise(creatureVoice.gameObject.transform.position);
     }
 
     private void HandleSpawnShishaPoop(string receivedShishaId, NetworkObjectReference poopNetworkObjectReference)
