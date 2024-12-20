@@ -4,16 +4,13 @@ using System.IO;
 using System.Linq;
 using System.Reflection;
 using System.Runtime.CompilerServices;
-using System.Runtime.Serialization.Formatters.Binary;
 using BepInEx;
+using BepInEx.Bootstrap;
 using BepInEx.Logging;
-using GameNetcodeStuff;
 using HarmonyLib;
 using LethalLib.Modules;
 using LobbyCompatibility.Enums;
 using LobbyCompatibility.Features;
-using Unity.Collections;
-using Unity.Netcode;
 using UnityEngine;
 using NetworkPrefabs = LethalLib.Modules.NetworkPrefabs;
 
@@ -23,13 +20,12 @@ namespace LethalCompanyShisha;
 [BepInDependency(LethalLib.Plugin.ModGUID)]
 [BepInDependency("linkoid-DissonanceLagFix-1.0.0", BepInDependency.DependencyFlags.SoftDependency)]
 [BepInDependency("mattymatty-AsyncLoggers-1.6.3", BepInDependency.DependencyFlags.SoftDependency)]
-[BepInDependency("mattymatty-Matty_Fixes-1.0.21", BepInDependency.DependencyFlags.SoftDependency)]
 [BepInDependency("BMX.LobbyCompatibility", BepInDependency.DependencyFlags.SoftDependency)]
 public class ShishaPlugin : BaseUnityPlugin
 {
     public const string ModGuid = $"LCM_Shisha|{ModVersion}";
     private const string ModName = "Lethal Company Shisha Mod";
-    private const string ModVersion = "1.1.6";
+    private const string ModVersion = "1.1.7";
 
     private readonly Harmony _harmony = new(ModGuid);
 
@@ -48,13 +44,13 @@ public class ShishaPlugin : BaseUnityPlugin
         if (_instance == null) _instance = this;
         if (LobbyCompatibilityChecker.Enabled) LobbyCompatibilityChecker.Init();
         
+        InitializeNetworkStuff();
+        
         _harmony.PatchAll();
         ShishaConfigInstance = new ShishaConfig(Config);
 
         if (!ShishaConfig.Instance.ShishaEnabled.Value)
             Mls.LogInfo("Shisha is disabled, not loading asset bundle.");
-        
-        InitializeNetworkStuff();
         
         Assets.PopulateAssetsFromFile();
         if (Assets.MainAssetBundle == null)
@@ -65,8 +61,7 @@ public class ShishaPlugin : BaseUnityPlugin
         
         SetupShisha();
         SetupShishaPoop();
-
-        _harmony.PatchAll();
+        
         _harmony.PatchAll(typeof(ShishaPlugin));
         _harmony.PatchAll(typeof(ShishaPoopBehaviour));
         Mls.LogInfo($"Plugin {ModName} is loaded!");
@@ -206,161 +201,13 @@ internal static class Assets
     }
 }
 
-[Serializable]
-public class SyncedInstance<T>
+internal static class LobbyCompatibilityChecker 
 {
-    internal static CustomMessagingManager MessageManager => NetworkManager.Singleton.CustomMessagingManager;
-    internal static bool IsClient => NetworkManager.Singleton.IsClient;
-    internal static bool IsHost => NetworkManager.Singleton.IsHost;
-
-    [NonSerialized] protected static int IntSize = 4;
-
-    public static T Default { get; private set; }
-    public static T Instance { get; private set; }
-
-    public static bool Synced { get; internal set; }
-
-    protected void InitInstance(T instance)
-    {
-        Default = instance;
-        Instance = instance;
-
-        IntSize = sizeof(int);
-    }
-
-    internal static void SyncInstance(byte[] data)
-    {
-        Instance = DeserializeFromBytes(data);
-        Synced = true;
-    }
-
-    internal static void RevertSync()
-    {
-        Instance = Default;
-        Synced = false;
-    }
-
-    public static byte[] SerializeToBytes(T val)
-    {
-        BinaryFormatter bf = new();
-        using MemoryStream stream = new();
-
-        try
-        {
-            bf.Serialize(stream, val);
-            return stream.ToArray();
-        }
-        catch (Exception e)
-        {
-            Debug.LogError($"Error serializing instance: {e}");
-            return null;
-        }
-    }
-
-    public static T DeserializeFromBytes(byte[] data)
-    {
-        BinaryFormatter bf = new();
-        using MemoryStream stream = new(data);
-
-        try
-        {
-            return (T)bf.Deserialize(stream);
-        }
-        catch (Exception e)
-        {
-            Debug.LogError($"Error deserializing instance: {e}");
-            return default;
-        }
-    }
-
-    private static void RequestSync()
-    {
-        if (!IsClient) return;
-
-        using FastBufferWriter stream = new(IntSize, Allocator.Temp);
-        MessageManager.SendNamedMessage($"{ShishaPlugin.ModGuid}_OnRequestConfigSync", 0uL, stream);
-    }
-
-    private static void OnRequestSync(ulong clientId, FastBufferReader _)
-    {
-        if (!IsHost) return;
-
-        Debug.Log($"Config sync request received from client: {clientId}");
-
-        byte[] array = SerializeToBytes(Instance);
-        int value = array.Length;
-
-        using FastBufferWriter stream = new(value + IntSize, Allocator.Temp);
-
-        try
-        {
-            stream.WriteValueSafe(in value);
-            stream.WriteBytesSafe(array);
-
-            MessageManager.SendNamedMessage($"{ShishaPlugin.ModGuid}_OnReceiveConfigSync", clientId, stream);
-        }
-        catch (Exception e)
-        {
-            Debug.Log($"Error occurred syncing config with client: {clientId}\n{e}");
-        }
-    }
-
-    private static void OnReceiveSync(ulong _, FastBufferReader reader)
-    {
-        if (!reader.TryBeginRead(IntSize))
-        {
-            Debug.LogError("Config sync error: Could not begin reading buffer.");
-            return;
-        }
-
-        reader.ReadValueSafe(out int val);
-        if (!reader.TryBeginRead(val))
-        {
-            Debug.LogError("Config sync error: Host could not sync.");
-            return;
-        }
-
-        byte[] data = new byte[val];
-        reader.ReadBytesSafe(ref data, val);
-
-        SyncInstance(data);
-
-        Debug.Log("Successfully synced config with host.");
-    }
-
-    [HarmonyPostfix]
-    [HarmonyPatch(typeof(PlayerControllerB), "ConnectClientToPlayerObject")]
-    public static void InitializeLocalPlayer()
-    {
-        if (IsHost)
-        {
-            MessageManager.RegisterNamedMessageHandler($"{ShishaPlugin.ModGuid}_OnRequestConfigSync", OnRequestSync);
-            Synced = true;
-
-            return;
-        }
-
-        Synced = false;
-        MessageManager.RegisterNamedMessageHandler($"{ShishaPlugin.ModGuid}_OnReceiveConfigSync", OnReceiveSync);
-        RequestSync();
-    }
-
-    [HarmonyPostfix]
-    [HarmonyPatch(typeof(GameNetworkManager), "StartDisconnect")]
-    public static void PlayerLeave()
-    {
-        RevertSync();
-    }
-}
-
-public static class LobbyCompatibilityChecker
-{
-    public static bool Enabled => BepInEx.Bootstrap.Chainloader.PluginInfos.ContainsKey("BMX.LobbyCompatibility");
+    internal static bool Enabled => Chainloader.PluginInfos.ContainsKey("BMX.LobbyCompatibility");
 
     [MethodImpl(MethodImplOptions.NoInlining | MethodImplOptions.NoOptimization)]
-    public static void Init()
+    internal static void Init() 
     {
-        PluginHelper.RegisterPlugin(PluginInfo.PLUGIN_GUID, Version.Parse(PluginInfo.PLUGIN_VERSION),
-            CompatibilityLevel.Everyone, VersionStrictness.Patch);
+        PluginHelper.RegisterPlugin(PluginInfo.PLUGIN_GUID, Version.Parse(PluginInfo.PLUGIN_VERSION), CompatibilityLevel.Everyone, VersionStrictness.Patch);
     }
 }

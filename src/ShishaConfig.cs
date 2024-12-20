@@ -1,4 +1,5 @@
 ﻿using BepInEx.Configuration;
+using LethalCompanyShisha.Types;
 
 namespace LethalCompanyShisha;
 
