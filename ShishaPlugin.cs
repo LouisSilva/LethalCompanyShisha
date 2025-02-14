@@ -13,6 +13,7 @@ using LobbyCompatibility.Enums;
 using LobbyCompatibility.Features;
 using UnityEngine;
 using NetworkPrefabs = LethalLib.Modules.NetworkPrefabs;
+using Random = UnityEngine.Random;
 
 namespace LethalCompanyShisha;
 
@@ -25,7 +26,7 @@ public class ShishaPlugin : BaseUnityPlugin
 {
     public const string ModGuid = $"LCM_Shisha|{ModVersion}";
     private const string ModName = "Lethal Company Shisha Mod";
-    private const string ModVersion = "1.1.8";
+    private const string ModVersion = "1.2.0";
 
     private readonly Harmony _harmony = new(ModGuid);
 
@@ -37,15 +38,17 @@ public class ShishaPlugin : BaseUnityPlugin
 
     private static EnemyType _shishaEnemyType;
 
-    public static Item ShishaPoopItem;
+    public static Item ShishaRedPoopItem;
+    public static Item ShishaGreenPoopItem;
+    public static Item ShishaBluePoopItem;
 
     private void Awake()
     {
         if (_instance == null) _instance = this;
         if (LobbyCompatibilityChecker.Enabled) LobbyCompatibilityChecker.Init();
-        
+
         InitializeNetworkStuff();
-        
+
         _harmony.PatchAll();
         ShishaConfigInstance = new ShishaConfig(Config);
 
@@ -54,129 +57,150 @@ public class ShishaPlugin : BaseUnityPlugin
             Mls.LogInfo("Shisha is disabled, not loading asset bundle.");
             return;
         }
-        
+
         Assets.PopulateAssetsFromFile();
         if (Assets.MainAssetBundle == null)
         {
             Mls.LogError("MainAssetBundle is null");
             return;
         }
-        
+
         SetupShisha();
-        SetupShishaPoop();
-        
+
+        ShishaRedPoopItem = SetupShishaPoop("Red");
+        ShishaGreenPoopItem = SetupShishaPoop("Green");
+        ShishaBluePoopItem = SetupShishaPoop("Blue");
+
         _harmony.PatchAll(typeof(ShishaPlugin));
         _harmony.PatchAll(typeof(ShishaPoopBehaviour));
         Mls.LogInfo($"Plugin {ModName} is loaded!");
+    }
+
+    private void SetupShisha()
+    {
+        _shishaEnemyType = Assets.MainAssetBundle.LoadAsset<EnemyType>("ShishaEnemyType");
+        _shishaEnemyType.MaxCount = Mathf.Max(0, ShishaConfig.Instance.ShishaMaxAmount.Value);
+        _shishaEnemyType.PowerLevel = Mathf.Max(0, ShishaConfig.Instance.ShishaPowerLevel.Value);
+        _shishaEnemyType.normalizedTimeInDayToLeave = ShishaConfig.Instance.TimeInDayLeaveEnabled.Value ? 0.6f : 1f;
+        _shishaEnemyType.canDie = ShishaConfig.Instance.Killable.Value;
+
+        TerminalNode shishaTerminalNode = Assets.MainAssetBundle.LoadAsset<TerminalNode>("ShishaTerminalNode");
+        TerminalKeyword shishaTerminalKeyword =
+            Assets.MainAssetBundle.LoadAsset<TerminalKeyword>("ShishaTerminalKeyword");
+
+        NetworkPrefabs.RegisterNetworkPrefab(_shishaEnemyType.enemyPrefab);
+        Utilities.FixMixerGroups(_shishaEnemyType.enemyPrefab);
+        RegisterEnemyWithConfig(ShishaConfig.Instance.ShishaEnabled.Value,
+            ShishaConfig.Instance.ShishaSpawnRarity.Value, _shishaEnemyType, shishaTerminalNode, shishaTerminalKeyword);
+    }
+
+    private static Item SetupShishaPoop(string colour)
+    {
+        Item poopItem = Assets.MainAssetBundle.LoadAsset<Item>($"Shisha{colour}PoopItemData");
+            
+        switch (colour)
+        {
+            case "Red":
+                poopItem.minValue = ShishaConfig.Instance.CommonCrystalMinValue.Value;
+                poopItem.maxValue = ShishaConfig.Instance.CommonCrystalMaxValue.Value;
+                break;
+            case "Green":
+                poopItem.minValue = ShishaConfig.Instance.UncommonCrystalMinValue.Value;
+                poopItem.maxValue = ShishaConfig.Instance.UncommonCrystalMaxValue.Value;
+                break;
+            case "Blue":
+                poopItem.minValue = ShishaConfig.Instance.RareCrystalMinValue.Value;
+                poopItem.maxValue = ShishaConfig.Instance.RareCrystalMaxValue.Value;
+                break;
         }
 
-        private void SetupShisha()
+        NetworkPrefabs.RegisterNetworkPrefab(poopItem.spawnPrefab);
+        Utilities.FixMixerGroups(poopItem.spawnPrefab);
+        Items.RegisterScrap(poopItem, 0, Levels.LevelTypes.All);
+
+        return poopItem;
+    }
+
+    private static void RegisterEnemyWithConfig(bool enemyEnabled, string configMoonRarity, EnemyType enemy,
+        TerminalNode terminalNode, TerminalKeyword terminalKeyword)
+    {
+        if (enemyEnabled)
         {
-            _shishaEnemyType = Assets.MainAssetBundle.LoadAsset<EnemyType>("ShishaEnemyType");
-            _shishaEnemyType.MaxCount = Mathf.Max(0, ShishaConfig.Instance.ShishaMaxAmount.Value);
-            _shishaEnemyType.PowerLevel = Mathf.Max(0, ShishaConfig.Instance.ShishaPowerLevel.Value);
-            _shishaEnemyType.normalizedTimeInDayToLeave = ShishaConfig.Instance.TimeInDayLeaveEnabled.Value ? 0.6f : 1f;
-            _shishaEnemyType.canDie = ShishaConfig.Instance.Killable.Value;
-        
-            TerminalNode shishaTerminalNode = Assets.MainAssetBundle.LoadAsset<TerminalNode>("ShishaTerminalNode");
-            TerminalKeyword shishaTerminalKeyword =
-                Assets.MainAssetBundle.LoadAsset<TerminalKeyword>("ShishaTerminalKeyword");
-        
-            NetworkPrefabs.RegisterNetworkPrefab(_shishaEnemyType.enemyPrefab);
-            Utilities.FixMixerGroups(_shishaEnemyType.enemyPrefab);
-            RegisterEnemyWithConfig(ShishaConfig.Instance.ShishaEnabled.Value,
-                ShishaConfig.Instance.ShishaSpawnRarity.Value, _shishaEnemyType, shishaTerminalNode, shishaTerminalKeyword);
+            (Dictionary<Levels.LevelTypes, int> spawnRateByLevelType,
+                Dictionary<string, int> spawnRateByCustomLevelType) = ConfigParsing(configMoonRarity);
+            Enemies.RegisterEnemy(enemy, spawnRateByLevelType, spawnRateByCustomLevelType, terminalNode,
+                terminalKeyword);
         }
-
-        private void SetupShishaPoop()
+        else
         {
-            ShishaPoopItem = Assets.MainAssetBundle.LoadAsset<Item>("ShishaPoopItemData");
-
-            NetworkPrefabs.RegisterNetworkPrefab(ShishaPoopItem.spawnPrefab);
-            Utilities.FixMixerGroups(ShishaPoopItem.spawnPrefab);
-            Items.RegisterScrap(ShishaPoopItem, 0, Levels.LevelTypes.All);
+            Enemies.RegisterEnemy(enemy, 0, Levels.LevelTypes.All, terminalNode, terminalKeyword);
         }
+    }
 
-        private static void RegisterEnemyWithConfig(bool enemyEnabled, string configMoonRarity, EnemyType enemy,
-            TerminalNode terminalNode, TerminalKeyword terminalKeyword)
+    private static (Dictionary<Levels.LevelTypes, int> spawnRateByLevelType, Dictionary<string, int>
+        spawnRateByCustomLevelType) ConfigParsing(string configMoonRarity)
+    {
+        Dictionary<Levels.LevelTypes, int> spawnRateByLevelType = new();
+        Dictionary<string, int> spawnRateByCustomLevelType = new();
+        foreach (string entry in configMoonRarity.Split(',').Select(s => s.Trim()))
         {
-            if (enemyEnabled)
+            string[] entryParts = entry.Split(':');
+
+            if (entryParts.Length != 2) continue;
+            string name = entryParts[0];
+            if (!int.TryParse(entryParts[1], out int spawnrate)) continue;
+
+            if (Enum.TryParse(name, true, out Levels.LevelTypes levelType))
             {
-                (Dictionary<Levels.LevelTypes, int> spawnRateByLevelType,
-                    Dictionary<string, int> spawnRateByCustomLevelType) = ConfigParsing(configMoonRarity);
-                Enemies.RegisterEnemy(enemy, spawnRateByLevelType, spawnRateByCustomLevelType, terminalNode,
-                    terminalKeyword);
+                spawnRateByLevelType[levelType] = spawnrate;
+                Mls.LogDebug($"Registered spawn rate for level type {levelType} to {spawnrate}");
             }
             else
             {
-                Enemies.RegisterEnemy(enemy, 0, Levels.LevelTypes.All, terminalNode, terminalKeyword);
-            }
-        }
-
-        private static (Dictionary<Levels.LevelTypes, int> spawnRateByLevelType, Dictionary<string, int>
-            spawnRateByCustomLevelType) ConfigParsing(string configMoonRarity)
-        {
-            Dictionary<Levels.LevelTypes, int> spawnRateByLevelType = new();
-            Dictionary<string, int> spawnRateByCustomLevelType = new();
-            foreach (string entry in configMoonRarity.Split(',').Select(s => s.Trim()))
-            {
-                string[] entryParts = entry.Split(':');
-
-                if (entryParts.Length != 2) continue;
-                string name = entryParts[0];
-                if (!int.TryParse(entryParts[1], out int spawnrate)) continue;
-
-                if (Enum.TryParse(name, true, out Levels.LevelTypes levelType))
+                // Try appending "Level" to the name and re-attempt parsing
+                string modifiedName = name + "Level";
+                if (Enum.TryParse(modifiedName, true, out levelType))
                 {
                     spawnRateByLevelType[levelType] = spawnrate;
                     Mls.LogDebug($"Registered spawn rate for level type {levelType} to {spawnrate}");
                 }
                 else
                 {
-                    // Try appending "Level" to the name and re-attempt parsing
-                    string modifiedName = name + "Level";
-                    if (Enum.TryParse(modifiedName, true, out levelType))
-                    {
-                        spawnRateByLevelType[levelType] = spawnrate;
-                        Mls.LogDebug($"Registered spawn rate for level type {levelType} to {spawnrate}");
-                    }
-                    else
-                    {
-                        spawnRateByCustomLevelType[name] = spawnrate;
-                        Mls.LogDebug($"Registered spawn rate for custom level type {name} to {spawnrate}");
-                    }
+                    spawnRateByCustomLevelType[name] = spawnrate;
+                    Mls.LogDebug($"Registered spawn rate for custom level type {name} to {spawnrate}");
                 }
             }
-
-            return (spawnRateByLevelType, spawnRateByCustomLevelType);
         }
 
-        private static void InitializeNetworkStuff()
+        return (spawnRateByLevelType, spawnRateByCustomLevelType);
+    }
+
+    private static void InitializeNetworkStuff()
+    {
+        IEnumerable<Type> types;
+        try
         {
-            IEnumerable<Type> types;
-            try
-            {
-                types = Assembly.GetExecutingAssembly().GetTypes();
-            }
-            catch (ReflectionTypeLoadException e)
-            {
-                types = e.Types.Where(t => t != null);
-            }
+            types = Assembly.GetExecutingAssembly().GetTypes();
+        }
+        catch (ReflectionTypeLoadException e)
+        {
+            types = e.Types.Where(t => t != null);
+        }
 
-            foreach (Type type in types)
+        foreach (Type type in types)
+        {
+            MethodInfo[] methods =
+                type.GetMethods(BindingFlags.NonPublic | BindingFlags.Instance | BindingFlags.Static);
+            foreach (MethodInfo method in methods)
             {
-                MethodInfo[] methods =
-                    type.GetMethods(BindingFlags.NonPublic | BindingFlags.Instance | BindingFlags.Static);
-                foreach (MethodInfo method in methods)
+                object[] attributes = method.GetCustomAttributes(typeof(RuntimeInitializeOnLoadMethodAttribute), false);
+                if (attributes.Length > 0)
                 {
-                    object[] attributes = method.GetCustomAttributes(typeof(RuntimeInitializeOnLoadMethodAttribute), false);
-                    if (attributes.Length > 0)
-                    {
-                        method.Invoke(null, null);
-                    }
+                    method.Invoke(null, null);
                 }
             }
         }
+    }
 }
 
 internal static class Assets
@@ -204,13 +228,14 @@ internal static class Assets
     }
 }
 
-internal static class LobbyCompatibilityChecker 
+internal static class LobbyCompatibilityChecker
 {
     internal static bool Enabled => Chainloader.PluginInfos.ContainsKey("BMX.LobbyCompatibility");
 
     [MethodImpl(MethodImplOptions.NoInlining | MethodImplOptions.NoOptimization)]
-    internal static void Init() 
+    internal static void Init()
     {
-        PluginHelper.RegisterPlugin(PluginInfo.PLUGIN_GUID, Version.Parse(PluginInfo.PLUGIN_VERSION), CompatibilityLevel.Everyone, VersionStrictness.Patch);
+        PluginHelper.RegisterPlugin(PluginInfo.PLUGIN_GUID, Version.Parse(PluginInfo.PLUGIN_VERSION),
+            CompatibilityLevel.Everyone, VersionStrictness.Patch);
     }
 }

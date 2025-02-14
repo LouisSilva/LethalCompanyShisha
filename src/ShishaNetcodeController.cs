@@ -9,7 +9,7 @@ public class ShishaNetcodeController : NetworkBehaviour
     internal event Action<string> OnSyncShishaIdentifier;
     internal event Action<string> OnIdleCompleteStateBehaviourCallback;
     internal event Action<string, int> OnSetAnimationTrigger;
-    internal event Action<string, NetworkObjectReference> OnSpawnShishaPoop;
+    internal event Action<string, NetworkObjectReference, int> OnSpawnShishaPoop;
     internal event Action<string, int> OnPlayAmbientSfx;
 
     internal event Action<string, int, bool> OnSetAnimationBool;
@@ -24,9 +24,9 @@ public class ShishaNetcodeController : NetworkBehaviour
     }
 
     [ClientRpc]
-    internal void SpawnShishaPoopClientRpc(string receivedShishaId, NetworkObjectReference poopNetworkObjectReference)
+    internal void SpawnShishaPoopClientRpc(string receivedShishaId, NetworkObjectReference poopNetworkObjectReference, int scrapValue)
     {
-        OnSpawnShishaPoop?.Invoke(receivedShishaId, poopNetworkObjectReference);
+        OnSpawnShishaPoop?.Invoke(receivedShishaId, poopNetworkObjectReference, scrapValue);
     }
 
     [ClientRpc]

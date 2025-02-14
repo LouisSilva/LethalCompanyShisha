@@ -339,18 +339,74 @@ public class ShishaServer : EnemyAI
 
         if (poopPlaceholder == null)
         {
-            _mls.LogError("PoopBehaviour is null, this should not happen.");
+            _mls.LogError("The poop placeholder transform is null, this should never happen.");
             return;
         }
 
+        int variantIndex = GetRandomVariantIndex();
+
         GameObject poopObject = Instantiate(
-            ShishaPlugin.ShishaPoopItem.spawnPrefab,
+            GetPoopItemFromIndex(variantIndex).spawnPrefab,
             poopPlaceholder.position,
             poopPlaceholder.rotation,
             poopPlaceholder);
+
+        ShishaPoopBehaviour poopBehaviour = poopObject.GetComponent<ShishaPoopBehaviour>();
+        int scrapValue = CalculateScrapValue(variantIndex);
+        poopBehaviour.SetScrapValue(scrapValue);
         
         poopObject.GetComponent<NetworkObject>().Spawn();
-        _netcodeController.SpawnShishaPoopClientRpc(_shishaId, poopObject);
+        _netcodeController.SpawnShishaPoopClientRpc(_shishaId, poopObject, scrapValue);
+    }
+    
+    // Old function
+    private static int GetRandomVariantIndex()
+    {
+        int commonCrystalChance = ShishaConfig.Instance.CommonCrystalChance.Value;
+        int uncommonCrystalChance = ShishaConfig.Instance.UncommonCrystalChance.Value;
+        int rareCrystalChance = ShishaConfig.Instance.RareCrystalChance.Value;
+
+        if (commonCrystalChance + uncommonCrystalChance + rareCrystalChance != 100)
+        {
+            commonCrystalChance = 65;
+            uncommonCrystalChance = 25;
+            rareCrystalChance = 10;
+        }
+
+        int chosenVariantIndex;
+        int roll = Random.Range(1, 101);
+
+        if (roll <= commonCrystalChance) chosenVariantIndex = 0;
+        else if (roll <= commonCrystalChance + uncommonCrystalChance) chosenVariantIndex = 1;
+        else chosenVariantIndex = 2;
+
+        return chosenVariantIndex;
+    }
+
+    // Make this one function in the future
+    private static Item GetPoopItemFromIndex(int variantIndex)
+    {
+        return variantIndex switch
+        {
+            0 => ShishaPlugin.ShishaRedPoopItem,
+            1 => ShishaPlugin.ShishaGreenPoopItem,
+            2 => ShishaPlugin.ShishaBluePoopItem,
+            _ => ShishaPlugin.ShishaRedPoopItem
+        };
+    }
+    
+    private static int CalculateScrapValue(int variant)
+    {
+        return variant switch
+        {
+            0 => Random.Range(ShishaConfig.Instance.CommonCrystalMinValue.Value,
+                ShishaConfig.Instance.CommonCrystalMaxValue.Value + 1),
+            1 => Random.Range(ShishaConfig.Instance.UncommonCrystalMinValue.Value,
+                ShishaConfig.Instance.UncommonCrystalMaxValue.Value + 1),
+            2 => Random.Range(ShishaConfig.Instance.RareCrystalMinValue.Value,
+                ShishaConfig.Instance.RareCrystalMaxValue.Value + 1),
+            _ => 1
+        };
     }
 
     public override void HitEnemy(int force = 1, PlayerControllerB playerWhoHit = null, bool playHitSFX = false,

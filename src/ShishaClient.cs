@@ -157,7 +157,7 @@ public class ShishaClient : MonoBehaviour
         RoundManager.Instance.PlayAudibleNoise(creatureVoice.gameObject.transform.position);
     }
 
-    private void HandleSpawnShishaPoop(string receivedShishaId, NetworkObjectReference poopNetworkObjectReference)
+    private void HandleSpawnShishaPoop(string receivedShishaId, NetworkObjectReference poopNetworkObjectReference, int scrapValue)
     {
         if (_shishaId != receivedShishaId) return;
         if (!poopNetworkObjectReference.TryGet(out NetworkObject poopNetworkObject)) return;
@@ -167,6 +167,7 @@ public class ShishaClient : MonoBehaviour
         _currentPoop.transform.position = poopPlaceholder.transform.position;
         _currentPoop.transform.rotation = poopPlaceholder.transform.rotation;
         _currentPoop.transform.SetParent(poopPlaceholder, false);
+        _currentPoop.SetScrapValue(scrapValue);
 
         LogDebug("Shisha poop spawned");
     }
@@ -215,12 +216,12 @@ public class ShishaClient : MonoBehaviour
     [ServerRpc]
     private void SpawnDeathPoopsServerRpc()
     {
-        List<int> poopVariantsToSpawn = [0, 1, 2];
+        List<Item> poopVariantsToSpawn = [ShishaPlugin.ShishaRedPoopItem, ShishaPlugin.ShishaGreenPoopItem, ShishaPlugin.ShishaBluePoopItem];
 
-        foreach (int poopVariant in poopVariantsToSpawn)
+        foreach (Item poopVariant in poopVariantsToSpawn)
         {
             Vector3 poopPos = RoundManager.Instance.GetRandomNavMeshPositionInRadiusSpherical(transform.position, 2);
-            GameObject poopObject = Instantiate(ShishaPlugin.ShishaPoopItem.spawnPrefab, poopPos, Quaternion.identity,
+            GameObject poopObject = Instantiate(poopVariant.spawnPrefab, poopPos, Quaternion.identity,
                 StartOfRound.Instance.propsContainer);
             ShishaPoopBehaviour poopBehaviour = poopObject.GetComponent<ShishaPoopBehaviour>();
 
