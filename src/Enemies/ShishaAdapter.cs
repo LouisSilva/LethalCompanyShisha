@@ -1,0 +1,126 @@
+﻿using GameNetcodeStuff;
+using LethalCompanyShisha.Core;
+using UnityEngine;
+using UnityEngine.AI;
+
+namespace LethalCompanyShisha;
+
+public class ShishaAdapter(EnemyAI instance) : IEnemyAdapter
+{
+    #region Unity Components
+    public NavMeshAgent Agent => instance.agent;
+    public Animator Animator => instance.creatureAnimator;
+    public Transform Transform => instance.transform;
+    public Transform EyeTransform => instance.eye;
+    #endregion
+
+    public GameObject[] AssignedAINodes
+    {
+        get => instance.allAINodes;
+        set => instance.allAINodes = value;
+    }
+
+    public PlayerControllerB TargetPlayer
+    {
+        get => instance.targetPlayer;
+        set => instance.targetPlayer = value;
+    }
+
+    public bool IsDead => instance.isEnemyDead;
+
+    public float StunNormalizedTimer => instance.stunNormalizedTimer;
+
+    public float OpenDoorSpeedMultiplier
+    {
+        get => instance.openDoorSpeedMultiplier;
+        set => instance.openDoorSpeedMultiplier = value;
+    }
+
+    public float AIIntervalLength
+    {
+        get => instance.AIIntervalTime;
+        set => instance.AIIntervalTime = value;
+    }
+
+    public int Health
+    {
+        get => instance.enemyHP;
+        set => instance.enemyHP = value;
+    }
+
+    #region Agent Stuff
+    public float AgentSpeedChangeRate { get; set; } = 10f;
+
+    private float _targetSpeed;
+
+    internal void MoveAgent()
+    {
+        Agent.speed = Mathf.MoveTowards(Agent.speed, _targetSpeed, AgentSpeedChangeRate * Time.deltaTime);
+    }
+
+    /// <summary>
+    /// Sets the desired movement profile for the agent.
+    /// The agent's speed will smoothly transition to the new target.
+    /// </summary>
+    /// <param name="maxSpeed">The desired maximum speed.</param>
+    /// <param name="acceleration">The acceleration to use to reach that speed.</param>
+    internal void SetMovementProfile(float maxSpeed, float acceleration)
+    {
+        _targetSpeed = maxSpeed;
+        Agent.acceleration = acceleration;
+    }
+
+    internal void BeginGracefulStop()
+    {
+        SetMovementProfile(0f, 100f);
+    }
+
+    internal void KillAllSpeed()
+    {
+        Agent.speed = 0f;
+        Agent.velocity = Vector3.zero;
+        _targetSpeed = 0f;
+    }
+
+    public void StopAllPathing()
+    {
+        // Resets the destination (so imperium doesn't draw the path to some old destination vector we arent using anymore)
+        instance.destination =
+            RoundManager.Instance.GetNavMeshPosition(instance.transform.position, RoundManager.Instance.navHit, -1f);
+
+        instance.movingTowardsTargetPlayer = false;
+        instance.moveTowardsDestination = false;
+    }
+
+    public void MoveToDestination(Vector3 destination)
+    {
+        instance.SetDestinationToPosition(destination);
+    }
+
+    public void MoveToPlayer(PlayerControllerB player)
+    {
+        instance.SetMovingTowardsTargetPlayer(player);
+        instance.moveTowardsDestination = true;
+    }
+
+    /// <summary>
+    /// <see href="https://discussions.unity.com/t/how-can-i-tell-when-a-navmeshagent-has-reached-its-destination/52403/5"/>
+    /// </summary>
+    /// <returns>Returns true if the <see cref="Agent"/> has reached its destination.</returns>
+    public bool HasReachedDestination()
+    {
+        // If there is no destination, then just return true
+        if (!instance.moveTowardsDestination) return true;
+
+        // If the agent is still calculating a path, then it has not arrived
+        if (Agent.pathPending) return false;
+
+        // If the agent is very close to it's destination, AND it doesn't have a path OR its velocity is near zero, then it has arrived
+        if (Agent.remainingDistance <= Agent.stoppingDistance &&
+            (!Agent.hasPath || Agent.velocity.sqrMagnitude < 0.05f))
+            return true;
+
+        return false;
+    }
+    #endregion
+}

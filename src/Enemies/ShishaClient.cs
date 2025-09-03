@@ -1,21 +1,17 @@
-﻿using BepInEx.Logging;
-using GameNetcodeStuff;
+﻿using GameNetcodeStuff;
+using LethalCompanyShisha.Core;
 using LethalCompanyShisha.CustomStateMachineBehaviours;
 using LethalCompanyShisha.Types;
 using System.Collections;
 using System.Collections.Generic;
 using Unity.Netcode;
 using UnityEngine;
-using Logger = BepInEx.Logging.Logger;
 using Random = UnityEngine.Random;
 
 namespace LethalCompanyShisha;
 
 public class ShishaClient : MonoBehaviour
 {
-    private ManualLogSource _mls;
-    private string _shishaId;
-
     private static readonly int IsRunning = Animator.StringToHash("Run");
     private static readonly int IsWalking = Animator.StringToHash("Walk");
     public static readonly int IsDead = Animator.StringToHash("Dead");
@@ -33,6 +29,9 @@ public class ShishaClient : MonoBehaviour
     [SerializeField] private Transform poopPlaceholder;
     [SerializeField] private ParticleSystem poofParticleSystem;
     [SerializeField] private GameObject scanNode;
+
+    [Header("Controllers")] [Space(5f)]
+    [SerializeField] private ShishaNetcodeController netcodeController;
 #pragma warning restore 0649
 
     [Header("Movement")] [Tooltip("The maximum speed that the creature can maintain while still walking")]
@@ -51,9 +50,7 @@ public class ShishaClient : MonoBehaviour
 
     private Animator _animator;
 
-    private readonly NullableObject<ShishaNetcodeController> _netcodeController = new();
-
-    private readonly NullableObject<PlayerControllerB> _targetPlayer = new();
+    private CachedUnityObject<PlayerControllerB> _targetPlayer;
 
     private ShishaPoopBehaviour _currentPoop;
 
@@ -68,6 +65,11 @@ public class ShishaClient : MonoBehaviour
     private int _currentBehaviourStateIndex;
     private static readonly int GotHit = Animator.StringToHash("GotHit");
 
+    private void Awake()
+    {
+        if (!netcodeController) netcodeController = GetComponent<ShishaNetcodeController>();
+    }
+
     private void OnEnable()
     {
         SubscribeToNetworkEvents();
@@ -80,17 +82,7 @@ public class ShishaClient : MonoBehaviour
 
     private void Start()
     {
-        _mls = Logger.CreateLogSource($"{ShishaPlugin.ModGuid} | Shisha Client {_shishaId}");
-
         _animator = GetComponent<Animator>();
-        _netcodeController.Value = GetComponent<ShishaNetcodeController>();
-
-        if (_netcodeController != null) SubscribeToNetworkEvents();
-        else
-        {
-            _mls.LogError("Netcode controller is null, this is very bad.");
-            return;
-        }
 
         InitializeConfigValues();
         AddStateMachineBehaviours(_animator);
@@ -148,20 +140,18 @@ public class ShishaClient : MonoBehaviour
         }
     }
 
-    private void HandlePlayAmbientSfx(string receivedShishaId, int clipIndex)
+    private void HandlePlayAmbientSfx(int clipIndex)
     {
-        if (_shishaId != receivedShishaId) return;
         AudioClip ambientAudioClipToPlay = ambientAudioClips[clipIndex];
         creatureVoice.PlayOneShot(ambientAudioClipToPlay);
         WalkieTalkie.TransmitOneShotAudio(creatureVoice, ambientAudioClipToPlay, ambientAudioVolume);
         RoundManager.Instance.PlayAudibleNoise(creatureVoice.gameObject.transform.position);
     }
 
-    private void HandleSpawnShishaPoop(string receivedShishaId, NetworkObjectReference poopNetworkObjectReference, int scrapValue)
+    private void HandleSpawnShishaPoop(NetworkObjectReference poopNetworkObjectReference, int scrapValue)
     {
-        if (_shishaId != receivedShishaId) return;
         if (!poopNetworkObjectReference.TryGet(out NetworkObject poopNetworkObject)) return;
-        LogDebug("Poop network object was not null!");
+        ShishaPlugin.LogVerbose("Poop network object was not null!");
 
         _currentPoop = poopNetworkObject.GetComponent<ShishaPoopBehaviour>();
         _currentPoop.transform.position = poopPlaceholder.transform.position;
@@ -169,12 +159,12 @@ public class ShishaClient : MonoBehaviour
         _currentPoop.transform.SetParent(poopPlaceholder, false);
         _currentPoop.SetScrapValue(scrapValue);
 
-        LogDebug("Shisha poop spawned");
+        ShishaPlugin.LogVerbose("Shisha poop spawned");
     }
 
     public void OnAnimationEventDropShishaPoop()
     {
-        if (_currentPoop == null) return;
+        if (!_currentPoop) return;
 
         _currentPoop.parentObject = null;
         _currentPoop.transform.SetParent(StartOfRound.Instance.propsContainer, true);
@@ -193,7 +183,7 @@ public class ShishaClient : MonoBehaviour
 
     private IEnumerator CompleteDeathSequence()
     {
-        LogDebug($"In {nameof(CompleteDeathSequence)}");
+        ShishaPlugin.LogVerbose($"In {nameof(CompleteDeathSequence)}");
         yield return new WaitForSeconds(1);
 
         poofParticleSystem.Play();
@@ -203,13 +193,13 @@ public class ShishaClient : MonoBehaviour
         yield return new WaitForSeconds(0.1f);
 
         Destroy(renderer.gameObject);
-        if (!_netcodeController.Value.IsServer) yield break;
+        if (!netcodeController.IsServer) yield break;
 
         SpawnDeathPoopsServerRpc();
         yield return new WaitForSeconds(0.5f);
 
         ShishaServer shishaServer = GetComponent<ShishaServer>();
-        if (shishaServer != null) Destroy(shishaServer);
+        if (shishaServer) Destroy(shishaServer);
         Destroy(this);
     }
 
@@ -247,7 +237,7 @@ public class ShishaClient : MonoBehaviour
         {
             if (behaviour is BaseStateMachineBehaviour baseStateMachineBehaviour)
             {
-                baseStateMachineBehaviour.Initialize(_netcodeController.Value);
+                baseStateMachineBehaviour.Initialize(netcodeController);
             }
         }
     }
@@ -255,7 +245,7 @@ public class ShishaClient : MonoBehaviour
     private void HandleBehaviourStateChanged(int oldValue, int newValue)
     {
         _currentBehaviourStateIndex = newValue;
-        LogDebug($"Changed behaviour state to {newValue}");
+        ShishaPlugin.LogVerbose($"Changed behaviour state to {newValue}");
 
         ShishaServer.States newState = (ShishaServer.States)newValue;
         switch (newState)
@@ -279,73 +269,41 @@ public class ShishaClient : MonoBehaviour
         }
     }
 
-    private void HandleSetAnimationTrigger(string receivedShishaId, int animationId)
+    private void HandleSetAnimationTrigger(int animationId)
     {
-        if (_shishaId != receivedShishaId) return;
         _animator.SetTrigger(animationId);
     }
 
-    private void HandleSetAnimationBool(string receivedShishaId, int animationId, bool value)
+    private void HandleSetAnimationBool(int animationId, bool value)
     {
-        if (_shishaId != receivedShishaId) return;
         _animator.SetBool(animationId, value);
-    }
-
-    private void HandleSyncShishaIdentifier(string receivedShishaId)
-    {
-        _shishaId = receivedShishaId;
-        _mls?.Dispose();
-        _mls = Logger.CreateLogSource($"{ShishaPlugin.ModGuid} | Shisha Client {_shishaId}");
-
-        LogDebug("Successfully synced shisha identifier");
-    }
-
-    private void HandleTargetPlayerChanged(ulong oldValue, ulong newValue)
-    {
-        _targetPlayer.Value = newValue == ShishaServer.NullPlayerId
-            ? null
-            : StartOfRound.Instance.allPlayerScripts[newValue];
-        LogDebug(_targetPlayer.IsNotNull
-            ? $"Changed target player to {_targetPlayer.Value?.playerUsername}."
-            : "Changed target player to null.");
     }
 
     private void SubscribeToNetworkEvents()
     {
-        if (_networkEventsSubscribed || !_netcodeController.IsNotNull) return;
+        if (_networkEventsSubscribed || netcodeController) return;
 
-        _netcodeController.Value.OnSyncShishaIdentifier += HandleSyncShishaIdentifier;
-        _netcodeController.Value.OnSetAnimationTrigger += HandleSetAnimationTrigger;
-        _netcodeController.Value.OnSpawnShishaPoop += HandleSpawnShishaPoop;
-        _netcodeController.Value.OnPlayAmbientSfx += HandlePlayAmbientSfx;
-        _netcodeController.Value.OnSetAnimationBool += HandleSetAnimationBool;
+        netcodeController.OnSetAnimationTrigger += HandleSetAnimationTrigger;
+        netcodeController.OnSpawnShishaPoop += HandleSpawnShishaPoop;
+        netcodeController.OnPlayAmbientSfx += HandlePlayAmbientSfx;
+        netcodeController.OnSetAnimationBool += HandleSetAnimationBool;
 
-        _netcodeController.Value.CurrentBehaviourStateIndex.OnValueChanged += HandleBehaviourStateChanged;
-        _netcodeController.Value.TargetPlayerClientId.OnValueChanged += HandleTargetPlayerChanged;
+        netcodeController.CurrentBehaviourStateIndex.OnValueChanged += HandleBehaviourStateChanged;
 
         _networkEventsSubscribed = true;
     }
 
     private void UnsubscribeFromNetworkEvents()
     {
-        if (!_networkEventsSubscribed || !_netcodeController.IsNotNull) return;
+        if (!_networkEventsSubscribed || netcodeController) return;
 
-        _netcodeController.Value.OnSyncShishaIdentifier -= HandleSyncShishaIdentifier;
-        _netcodeController.Value.OnSetAnimationTrigger -= HandleSetAnimationTrigger;
-        _netcodeController.Value.OnSpawnShishaPoop -= HandleSpawnShishaPoop;
-        _netcodeController.Value.OnPlayAmbientSfx -= HandlePlayAmbientSfx;
-        _netcodeController.Value.OnSetAnimationBool -= HandleSetAnimationBool;
+        netcodeController.OnSetAnimationTrigger -= HandleSetAnimationTrigger;
+        netcodeController.OnSpawnShishaPoop -= HandleSpawnShishaPoop;
+        netcodeController.OnPlayAmbientSfx -= HandlePlayAmbientSfx;
+        netcodeController.OnSetAnimationBool -= HandleSetAnimationBool;
 
-        _netcodeController.Value.CurrentBehaviourStateIndex.OnValueChanged -= HandleBehaviourStateChanged;
-        _netcodeController.Value.TargetPlayerClientId.OnValueChanged -= HandleTargetPlayerChanged;
+        netcodeController.CurrentBehaviourStateIndex.OnValueChanged -= HandleBehaviourStateChanged;
 
         _networkEventsSubscribed = false;
-    }
-
-    private void LogDebug(string msg)
-    {
-#if DEBUG
-        _mls?.LogInfo(msg);
-#endif
     }
 }

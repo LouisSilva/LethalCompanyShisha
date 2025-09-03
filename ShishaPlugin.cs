@@ -8,33 +8,27 @@ using BepInEx;
 using BepInEx.Bootstrap;
 using BepInEx.Logging;
 using HarmonyLib;
+using LethalCompanyShisha.Util;
 using LethalLib.Modules;
 using LobbyCompatibility.Enums;
 using LobbyCompatibility.Features;
+using System.Diagnostics;
 using UnityEngine;
 using NetworkPrefabs = LethalLib.Modules.NetworkPrefabs;
-using Random = UnityEngine.Random;
 
 namespace LethalCompanyShisha;
 
-[BepInPlugin(PluginInfo.PLUGIN_GUID, PluginInfo.PLUGIN_NAME, PluginInfo.PLUGIN_VERSION)]
+[BepInPlugin(MyPluginInfo.PLUGIN_GUID, MyPluginInfo.PLUGIN_NAME, MyPluginInfo.PLUGIN_VERSION)]
 [BepInDependency(LethalLib.Plugin.ModGUID)]
 [BepInDependency("linkoid-DissonanceLagFix-1.0.0", BepInDependency.DependencyFlags.SoftDependency)]
 [BepInDependency("mattymatty-AsyncLoggers-1.6.3", BepInDependency.DependencyFlags.SoftDependency)]
 [BepInDependency("BMX.LobbyCompatibility", BepInDependency.DependencyFlags.SoftDependency)]
 public class ShishaPlugin : BaseUnityPlugin
 {
-    public const string ModGuid = $"LCM_Shisha|{ModVersion}";
-    private const string ModName = "Lethal Company Shisha Mod";
-    private const string ModVersion = "1.2.0";
-
-    private readonly Harmony _harmony = new(ModGuid);
-
-    public static readonly ManualLogSource Mls = BepInEx.Logging.Logger.CreateLogSource(ModGuid);
-
-    public static ShishaConfig ShishaConfigInstance { get; internal set; }
-
-    private static ShishaPlugin _instance;
+    public static ShishaPlugin Instance { get; private set; }
+    internal new static ManualLogSource Logger { get; private set; }
+    internal new static ShishaConfig Config { get; private set; }
+    private Harmony _harmony;
 
     private static EnemyType _shishaEnemyType;
 
@@ -44,24 +38,31 @@ public class ShishaPlugin : BaseUnityPlugin
 
     private void Awake()
     {
-        if (_instance == null) _instance = this;
+        Stopwatch timer = Stopwatch.StartNew();
+        Logger = BepInEx.Logging.Logger.CreateLogSource($"{MyPluginInfo.PLUGIN_NAME}|{MyPluginInfo.PLUGIN_VERSION}");
+        Instance = this;
+
         if (LobbyCompatibilityChecker.Enabled) LobbyCompatibilityChecker.Init();
 
-        InitializeNetworkStuff();
+        Logger.LogDebug("Creating base biodiversity config."); // Can't use LogVerbose here yet because we need the config to tell us whether verbose logging is enabled or not.
+        Config = new ShishaConfig(base.Config);
+
+        LogVerbose("Creating Harmony instance...");
+        _harmony = new Harmony(MyPluginInfo.PLUGIN_GUID);
 
         _harmony.PatchAll();
-        ShishaConfigInstance = new ShishaConfig(Config);
+
 
         if (!ShishaConfig.Instance.ShishaEnabled.Value)
         {
-            Mls.LogInfo("Shisha is disabled, not loading asset bundle.");
+            Logger.LogInfo("Shisha is disabled, not loading asset bundle.");
             return;
         }
 
         Assets.PopulateAssetsFromFile();
-        if (Assets.MainAssetBundle == null)
+        if (!Assets.MainAssetBundle)
         {
-            Mls.LogError("MainAssetBundle is null");
+            Logger.LogError("MainAssetBundle is null");
             return;
         }
 
@@ -73,7 +74,12 @@ public class ShishaPlugin : BaseUnityPlugin
 
         _harmony.PatchAll(typeof(ShishaPlugin));
         _harmony.PatchAll(typeof(ShishaPoopBehaviour));
-        Mls.LogInfo($"Plugin {ModName} is loaded!");
+
+        NetcodePatcher();
+
+        timer.Stop();
+        Logger.LogInfo(
+            $"{MyPluginInfo.PLUGIN_GUID}:{MyPluginInfo.PLUGIN_VERSION} has setup in {timer.ElapsedMilliseconds}ms.");
     }
 
     private void SetupShisha()
@@ -97,7 +103,7 @@ public class ShishaPlugin : BaseUnityPlugin
     private static Item SetupShishaPoop(string colour)
     {
         Item poopItem = Assets.MainAssetBundle.LoadAsset<Item>($"Shisha{colour}PoopItemData");
-            
+
         switch (colour)
         {
             case "Red":
@@ -142,6 +148,7 @@ public class ShishaPlugin : BaseUnityPlugin
     {
         Dictionary<Levels.LevelTypes, int> spawnRateByLevelType = new();
         Dictionary<string, int> spawnRateByCustomLevelType = new();
+
         foreach (string entry in configMoonRarity.Split(',').Select(s => s.Trim()))
         {
             string[] entryParts = entry.Split(':');
@@ -153,7 +160,7 @@ public class ShishaPlugin : BaseUnityPlugin
             if (Enum.TryParse(name, true, out Levels.LevelTypes levelType))
             {
                 spawnRateByLevelType[levelType] = spawnrate;
-                Mls.LogDebug($"Registered spawn rate for level type {levelType} to {spawnrate}");
+                LogVerbose($"Registered spawn rate for level type {levelType} to {spawnrate}");
             }
             else
             {
@@ -162,12 +169,12 @@ public class ShishaPlugin : BaseUnityPlugin
                 if (Enum.TryParse(modifiedName, true, out levelType))
                 {
                     spawnRateByLevelType[levelType] = spawnrate;
-                    Mls.LogDebug($"Registered spawn rate for level type {levelType} to {spawnrate}");
+                    LogVerbose($"Registered spawn rate for level type {levelType} to {spawnrate}");
                 }
                 else
                 {
                     spawnRateByCustomLevelType[name] = spawnrate;
-                    Mls.LogDebug($"Registered spawn rate for custom level type {name} to {spawnrate}");
+                    LogVerbose($"Registered spawn rate for custom level type {name} to {spawnrate}");
                 }
             }
         }
@@ -175,31 +182,59 @@ public class ShishaPlugin : BaseUnityPlugin
         return (spawnRateByLevelType, spawnRateByCustomLevelType);
     }
 
-    private static void InitializeNetworkStuff()
+    private static void NetcodePatcher()
     {
-        IEnumerable<Type> types;
         try
         {
-            types = Assembly.GetExecutingAssembly().GetTypes();
-        }
-        catch (ReflectionTypeLoadException e)
-        {
-            types = e.Types.Where(t => t != null);
-        }
-
-        foreach (Type type in types)
-        {
-            MethodInfo[] methods =
-                type.GetMethods(BindingFlags.NonPublic | BindingFlags.Instance | BindingFlags.Static);
-            foreach (MethodInfo method in methods)
+            IEnumerable<Type> types = Assembly.GetExecutingAssembly().GetLoadableTypes();
+            foreach (Type type in types)
             {
-                object[] attributes = method.GetCustomAttributes(typeof(RuntimeInitializeOnLoadMethodAttribute), false);
-                if (attributes.Length > 0)
+                MethodInfo[] methods =
+                    type.GetMethods(BindingFlags.NonPublic | BindingFlags.Instance | BindingFlags.Static);
+
+                foreach (MethodInfo method in methods)
                 {
-                    method.Invoke(null, null);
+                    if (!Attribute.IsDefined(method, typeof(RuntimeInitializeOnLoadMethodAttribute)))
+                        continue;
+
+                    // Needed because patching the network stuff in the generic StateManagedAI class produces an error
+                    if (method.ContainsGenericParameters)
+                    {
+                        Logger.LogDebug(
+                            $"[NetcodePatcher] Skipping generic method {type.FullName}.{method.Name} with [RuntimeInitializeOnLoadMethod] attribute.");
+                        continue;
+                    }
+
+                    try
+                    {
+                        method.Invoke(null, null);
+                    }
+                    catch (Exception invokeException)
+                    {
+                        Logger.LogError($"Error invoking method {type.FullName}.{method.Name}: {invokeException}");
+                    }
                 }
             }
         }
+        catch (ReflectionTypeLoadException reflectionException)
+        {
+            Logger.LogError($"[NetcodePatcher] Error loading types from assembly: {reflectionException}");
+
+            for (int i = 0; i < reflectionException.LoaderExceptions.Length; i++)
+            {
+                Exception loaderException = reflectionException.LoaderExceptions[i];
+                if (loaderException != null)
+                {
+                    Logger.LogError($"[NetcodePatcher] Loader Exception: {loaderException.Message}");
+                }
+            }
+        }
+    }
+
+    internal static void LogVerbose(object message)
+    {
+        if (Config.VerboseLoggingEnabled)
+            Logger.LogDebug(message);
     }
 }
 
@@ -210,18 +245,19 @@ internal static class Assets
 
     public static void PopulateAssetsFromFile()
     {
-        if (MainAssetBundle != null) return;
+        if (MainAssetBundle) return;
         string assemblyLocation = Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location);
+
         if (assemblyLocation != null)
         {
             MainAssetBundle = AssetBundle.LoadFromFile(Path.Combine(assemblyLocation, MainAssetBundleName));
 
-            if (MainAssetBundle != null) return;
+            if (MainAssetBundle) return;
             string assetsPath = Path.Combine(assemblyLocation, "Assets");
             MainAssetBundle = AssetBundle.LoadFromFile(Path.Combine(assetsPath, MainAssetBundleName));
         }
 
-        if (MainAssetBundle == null)
+        if (!MainAssetBundle)
         {
             ShishaPlugin.Mls.LogWarning($"Failed to load {MainAssetBundleName} bundle");
         }
@@ -235,7 +271,7 @@ internal static class LobbyCompatibilityChecker
     [MethodImpl(MethodImplOptions.NoInlining | MethodImplOptions.NoOptimization)]
     internal static void Init()
     {
-        PluginHelper.RegisterPlugin(PluginInfo.PLUGIN_GUID, Version.Parse(PluginInfo.PLUGIN_VERSION),
+        PluginHelper.RegisterPlugin(MyPluginInfo.PLUGIN_GUID, Version.Parse(MyPluginInfo.PLUGIN_VERSION),
             CompatibilityLevel.Everyone, VersionStrictness.Patch);
     }
 }

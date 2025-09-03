@@ -7,14 +7,14 @@ public class IdleCompleteStateBehaviour : BaseStateMachineBehaviour
 {
     public override void OnStateEnter(Animator animator, AnimatorStateInfo stateInfo, int layerIndex)
     {
-        if (!NetcodeController.IsNotNull)
+        if (!netcodeController.HasValue)
         {
-            LogDebug("Netcode Controller is null");
+            ShishaPlugin.LogVerbose("Netcode Controller is null");
             return;
         }
 
-        if (!NetworkManager.Singleton.IsServer || !NetcodeController.Value.IsOwner) return;
-        LogDebug("Idle cycle complete");
-        NetcodeController.Value.IdleCompleteStateBehaviourCallbackServerRpc(ShishaId);
+        if (!NetworkManager.Singleton.IsServer || !netcodeController.Value.IsOwner) return;
+        ShishaPlugin.LogVerbose("Idle cycle complete");
+        netcodeController.Value.IdleCompleteStateBehaviourCallbackServerRpc();
     }
 }
