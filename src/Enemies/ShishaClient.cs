@@ -1,7 +1,4 @@
-﻿using GameNetcodeStuff;
-using LethalCompanyShisha.Core;
-using LethalCompanyShisha.CustomStateMachineBehaviours;
-using LethalCompanyShisha.Types;
+﻿using LethalCompanyShisha.CustomStateMachineBehaviours;
 using System.Collections;
 using System.Collections.Generic;
 using Unity.Netcode;
@@ -50,8 +47,6 @@ public class ShishaClient : MonoBehaviour
 
     private Animator _animator;
 
-    private CachedUnityObject<PlayerControllerB> _targetPlayer;
-
     private ShishaPoopBehaviour _currentPoop;
 
     private Vector3 _agentLastPosition;
@@ -94,8 +89,6 @@ public class ShishaClient : MonoBehaviour
         _agentCurrentSpeed = Mathf.Lerp(_agentCurrentSpeed, (position - _agentLastPosition).magnitude / Time.deltaTime,
             0.75f);
         _agentLastPosition = position;
-
-        // AdjustRotationToSlope();
 
         switch (_currentBehaviourStateIndex)
         {
@@ -226,8 +219,8 @@ public class ShishaClient : MonoBehaviour
 
     private void InitializeConfigValues()
     {
-        creatureVoice.volume = Mathf.Clamp(ShishaConfig.Default.AmbientSoundEffectsVolume.Value, 0, 1) * 2;
-        creatureSfx.volume = Mathf.Clamp(ShishaConfig.Default.FootstepSoundEffectsVolume.Value, 0, 1) * 2;
+        creatureVoice.volume = ShishaPlugin.Config.AmbientSfxVolume * 2;
+        creatureSfx.volume = ShishaPlugin.Config.FootstepSfxVolume * 2;
     }
 
     private void AddStateMachineBehaviours(Animator receivedAnimator)

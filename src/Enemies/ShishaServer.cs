@@ -1,7 +1,6 @@
 ﻿using System.Collections;
 using GameNetcodeStuff;
 using LethalCompanyShisha.Core;
-using LethalCompanyShisha.Types;
 using Unity.Netcode;
 using UnityEngine;
 using Random = UnityEngine.Random;
@@ -114,7 +113,7 @@ public class ShishaServer : BaseAI
         _ambientAudioTimer -= Time.deltaTime;
         if (_ambientAudioTimer <= 0)
         {
-            _ambientAudioTimer = Random.Range(ambientSfxTimerRange.x, ambientSfxTimerRange.y);
+            _ambientAudioTimer = Random.Range(ShishaPlugin.Config.AmbientSfxTimerMin, ShishaPlugin.Config.AmbientSfxTimerMax);
             if (_numberOfAmbientAudioClips == 0) return;
             netcodeController.PlayAmbientSfxClientRpc(Random.Range(0, _numberOfAmbientAudioClips));
         }
@@ -187,7 +186,7 @@ public class ShishaServer : BaseAI
             case (int)States.Roaming:
             {
                 _adapter.SetMovementProfile(ShishaPlugin.Config.MaxSpeed, ShishaPlugin.Config.Acceleration);
-                _blackboard.WanderTimer = Random.Range(wanderTimeRange.x, wanderTimeRange.y);
+                _blackboard.WanderTimer = Random.Range(ShishaPlugin.Config.WanderTimeMin, ShishaPlugin.Config.WanderTimeMax);
 
                 StartSearch(_blackboard.IsAnchoredWanderEnabled ? _blackboard.SpawnPosition : _adapter.Transform.position, roamSearchRoutine);
                 break;
@@ -384,25 +383,11 @@ public class ShishaServer : BaseAI
     {
         if (!IsServer) return;
 
-        float wanderTimeMin = Mathf.Clamp(ShishaConfig.Instance.WanderTimeMin.Value, 0f, 500f);
-        float ambientSfxTimeMin = Mathf.Clamp(ShishaConfig.Instance.AmbientSfxTimerMin.Value, 0f, 500f);
         roamSearchRoutine.loopSearch = true;
-        roamSearchRoutine.searchWidth = Mathf.Clamp(ShishaConfig.Instance.WanderRadius.Value, 50f, 500f);
-        creatureVoice.volume = Mathf.Clamp(ShishaConfig.Default.AmbientSoundEffectsVolume.Value, 0, 1) * 2;
-        creatureSFX.volume = Mathf.Clamp(ShishaConfig.Default.FootstepSoundEffectsVolume.Value, 0, 1) * 2;
-        anchoredWandering = ShishaConfig.Instance.AnchoredWandering.Value;
-        maxSpeed = Mathf.Clamp(ShishaConfig.Instance.MaxSpeed.Value, 0.1f, 100f);
-        maxAcceleration = Mathf.Clamp(ShishaConfig.Instance.MaxAcceleration.Value, 0.1f, 100f);
-        runningAwayMaxSpeed = Mathf.Clamp(ShishaConfig.Instance.RunningAwayMaxSpeed.Value, 0.1f, 100f);
-        runningAwayMaxAcceleration = Mathf.Clamp(ShishaConfig.Instance.RunningAwayMaxAcceleration.Value, 0.1f, 100f);
-        _poopBehaviourEnabled = ShishaConfig.Instance.PoopBehaviourEnabled.Value;
-        poopChance = Mathf.Clamp(ShishaConfig.Instance.PoopChance.Value, 0f, 1f);
-        _killable = ShishaConfig.Instance.Killable.Value;
-        enemyHP = Mathf.Max(ShishaConfig.Instance.Health.Value, 1);
-        wanderTimeRange = new Vector2(wanderTimeMin,
-            Mathf.Clamp(ShishaConfig.Instance.WanderTimeMax.Value, wanderTimeMin, 1000f));
-        ambientSfxTimerRange = new Vector2(ambientSfxTimeMin,
-            Mathf.Clamp(ShishaConfig.Instance.AmbientSfxTimerMax.Value, ambientSfxTimeMin, 1000f));
+        roamSearchRoutine.searchWidth = ShishaPlugin.Config.WanderRadius;
+        creatureVoice.volume = ShishaPlugin.Config.AmbientSfxVolume * 2;
+        creatureSFX.volume = ShishaPlugin.Config.FootstepSfxVolume * 2;
+        enemyHP = Mathf.Max(ShishaPlugin.Config.Health, 1);
     }
 
     private void SwitchBehaviourState(int state)

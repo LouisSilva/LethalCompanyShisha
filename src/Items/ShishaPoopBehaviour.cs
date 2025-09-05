@@ -1,20 +1,13 @@
-﻿using System;
-using BepInEx.Logging;
-using HarmonyLib;
+﻿using HarmonyLib;
 using System.Diagnostics.CodeAnalysis;
 using Unity.Netcode;
-using Logger = BepInEx.Logging.Logger;
-using Random = UnityEngine.Random;
 
 namespace LethalCompanyShisha;
 
 public class ShishaPoopBehaviour : PhysicsProp
 {
-    private ManualLogSource _mls;
-    private string _poopId;
-
     private bool _networkEventsSubscribed;
-    
+
     private readonly NetworkVariable<bool> _isPartOfShisha = new();
 
     private void OnEnable()
@@ -31,14 +24,6 @@ public class ShishaPoopBehaviour : PhysicsProp
     {
         base.Start();
         SubscribeToNetworkEvents();
-
-        if (IsServer)
-        {
-            _poopId = Guid.NewGuid().ToString();
-            _mls = Logger.CreateLogSource($"{ShishaPlugin.ModGuid} | Shisha Poop {_poopId}");
-            Random.InitState(StartOfRound.Instance.randomMapSeed + _poopId.GetHashCode());
-            SyncPoopIdClientRpc(_poopId);
-        }
     }
 
     public override void Update()
@@ -104,15 +89,6 @@ public class ShishaPoopBehaviour : PhysicsProp
         grabbableToEnemies = !newValue;
         grabbable = !newValue;
         fallTime = !newValue ? 1f : 0f;
-    }
-
-    [ClientRpc]
-    private void SyncPoopIdClientRpc(string poopId)
-    {
-        if (IsServer) return;
-        _poopId = poopId;
-        _mls?.Dispose();
-        _mls = Logger.CreateLogSource($"{ShishaPlugin.ModGuid} | Shisha Poop {_poopId}");
     }
 
     private void SubscribeToNetworkEvents()

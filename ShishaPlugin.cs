@@ -53,7 +53,7 @@ public class ShishaPlugin : BaseUnityPlugin
         _harmony.PatchAll();
 
 
-        if (!ShishaConfig.Instance.ShishaEnabled.Value)
+        if (!Config.ShishaEnabled)
         {
             Logger.LogInfo("Shisha is disabled, not loading asset bundle.");
             return;
@@ -85,10 +85,10 @@ public class ShishaPlugin : BaseUnityPlugin
     private void SetupShisha()
     {
         _shishaEnemyType = Assets.MainAssetBundle.LoadAsset<EnemyType>("ShishaEnemyType");
-        _shishaEnemyType.MaxCount = Mathf.Max(0, ShishaConfig.Instance.ShishaMaxAmount.Value);
-        _shishaEnemyType.PowerLevel = Mathf.Max(0, ShishaConfig.Instance.ShishaPowerLevel.Value);
-        _shishaEnemyType.normalizedTimeInDayToLeave = ShishaConfig.Instance.TimeInDayLeaveEnabled.Value ? 0.6f : 1f;
-        _shishaEnemyType.canDie = ShishaConfig.Instance.Killable.Value;
+        _shishaEnemyType.MaxCount = Config.MaxAmount;
+        _shishaEnemyType.PowerLevel = Config.PowerLevel;
+        _shishaEnemyType.normalizedTimeInDayToLeave = Config.TimeInDayLeaveEnabled ? 0.6f : 1f;
+        _shishaEnemyType.canDie = Config.Killable;
 
         TerminalNode shishaTerminalNode = Assets.MainAssetBundle.LoadAsset<TerminalNode>("ShishaTerminalNode");
         TerminalKeyword shishaTerminalKeyword =
@@ -96,8 +96,7 @@ public class ShishaPlugin : BaseUnityPlugin
 
         NetworkPrefabs.RegisterNetworkPrefab(_shishaEnemyType.enemyPrefab);
         Utilities.FixMixerGroups(_shishaEnemyType.enemyPrefab);
-        RegisterEnemyWithConfig(ShishaConfig.Instance.ShishaEnabled.Value,
-            ShishaConfig.Instance.ShishaSpawnRarity.Value, _shishaEnemyType, shishaTerminalNode, shishaTerminalKeyword);
+        RegisterEnemyWithConfig(Config.ShishaEnabled, Config.Rarity, _shishaEnemyType, shishaTerminalNode, shishaTerminalKeyword);
     }
 
     private static Item SetupShishaPoop(string colour)
@@ -143,8 +142,8 @@ public class ShishaPlugin : BaseUnityPlugin
         }
     }
 
-    private static (Dictionary<Levels.LevelTypes, int> spawnRateByLevelType, Dictionary<string, int>
-        spawnRateByCustomLevelType) ConfigParsing(string configMoonRarity)
+    private static (Dictionary<Levels.LevelTypes, int> spawnRateByLevelType, Dictionary<string, int> spawnRateByCustomLevelType)
+        ConfigParsing(string configMoonRarity)
     {
         Dictionary<Levels.LevelTypes, int> spawnRateByLevelType = new();
         Dictionary<string, int> spawnRateByCustomLevelType = new();
@@ -259,7 +258,7 @@ internal static class Assets
 
         if (!MainAssetBundle)
         {
-            ShishaPlugin.Mls.LogWarning($"Failed to load {MainAssetBundleName} bundle");
+            ShishaPlugin.Logger.LogError($"Failed to load {MainAssetBundleName} bundle");
         }
     }
 }
@@ -275,3 +274,36 @@ internal static class LobbyCompatibilityChecker
             CompatibilityLevel.Everyone, VersionStrictness.Patch);
     }
 }
+
+/*
+LethalLevelLoader.ContentExtractor.ExtractSelectableLevelReferences();
+
+var bob = LethalLevelLoader.ContentTagManager.globalContentTagDictionary;
+foreach (var cTag in bob.Keys)
+{
+	Log($"{cTag}: {bob[cTag]}");
+}
+
+
+var seichiContentTags = bob["Natural"];
+foreach (var contentTag in seichiContentTags)
+{
+    Log(contentTag);
+}
+
+
+var extendedContent = LethalLevelLoader.ContentTagManager.GetAllExtendedContentsByTag("Seichi");
+foreach (var eContent in extendedContent)
+{
+    //Log(eContent);
+}
+
+
+var seichiExtendedLevel = extendedContent[0];
+foreach (var contentTagg in seichiExtendedLevel.ContentTags)
+{
+    Log(contentTagg);
+}
+
+Log(seichiExtendedLevel.TryGetTag("Seichi"));
+*/

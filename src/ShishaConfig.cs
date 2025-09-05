@@ -60,6 +60,12 @@ public class ShishaConfig(ConfigFile cfg) : ConfigLoader<ShishaConfig>(cfg)
     [field: Tooltip("When enabled, the Shisha will only wander around its spawn point within the radius defined by the Wander Radius setting. If disabled, the Shisha can wander from any point within the Wander Radius.")]
     public bool AnchoredWandering { get; private set; } = true;
 
+    [field: Tooltip("The minimum time that the Shisha will wander for.")]
+    public float WanderTimeMin { get; private set; } = 5f;
+
+    [field: Tooltip("The maximum time that the Shisha will wander for.")]
+    public float WanderTimeMax { get; private set; } = 45f;
+
     [field: Tooltip("The maximum speed of the Shisha.")]
     [field: Range(0f, 500f)]
     public float MaxSpeed { get; private set; } = 4f;
@@ -73,6 +79,26 @@ public class ShishaConfig(ConfigFile cfg) : ConfigLoader<ShishaConfig>(cfg)
     public float RunningAwayMaxSpeed { get; private set; } = 7f;
     #endregion
 
+    #region Audio Settings
+    [field: Header("Audio Settings")]
+
+    [field: Tooltip("The minimum time gap between any given ambient sound effect.")]
+    [field: Range(0f, 50f)]
+    public float AmbientSfxTimerMin { get; private set; } = 7.5f;
+
+    [field: Tooltip("The maximum time gap between any given ambient sound effect.")]
+    [field: Range(0f, 500f)]
+    public float AmbientSfxTimerMax { get; private set; } = 30f;
+
+    [field: Tooltip("The volume of the ambient sounds of the Shisha.")]
+    [field: Range(0f, 1f)]
+    public float AmbientSfxVolume { get; private set; } = 0.4f;
+
+    [field: Tooltip("The volume of the footstep sounds of the Shisha.")]
+    [field: Range(0f, 1f)]
+    public float FootstepSfxVolume { get; private set; } = 0.7f;
+    #endregion
+
     public readonly ConfigEntry<int> CommonCrystalChance;
     public readonly ConfigEntry<int> UncommonCrystalChance;
     public readonly ConfigEntry<int> RareCrystalChance;
@@ -82,149 +108,9 @@ public class ShishaConfig(ConfigFile cfg) : ConfigLoader<ShishaConfig>(cfg)
     public readonly ConfigEntry<int> UncommonCrystalMaxValue;
     public readonly ConfigEntry<int> RareCrystalMinValue;
     public readonly ConfigEntry<int> RareCrystalMaxValue;
-    public readonly ConfigEntry<float> AmbientSoundEffectsVolume;
-    public readonly ConfigEntry<float> FootstepSoundEffectsVolume;
-
-    public readonly ConfigEntry<float> WanderTimeMin;
-    public readonly ConfigEntry<float> WanderTimeMax;
-    public readonly ConfigEntry<float> AmbientSfxTimerMin;
-    public readonly ConfigEntry<float> AmbientSfxTimerMax;
 
     // public ShishaConfig(ConfigFile cfg)
     // {
-    //     WanderRadius = cfg.Bind(
-    //         "General",
-    //         "Wander Radius",
-    //         50f,
-    //         "The maximum distance from the Shisha's current position within which it can wander."
-    //     );
-    //
-    //     AnchoredWandering = cfg.Bind(
-    //         "General",
-    //         "Anchored Wandering",
-    //         true,
-    //         "When enabled, the Shisha will only wander around its spawn point within a radius defined by the Wander Radius. If disabled, the Shisha can wander from any point within the Wander Radius."
-    //     );
-    //
-    //     Killable = cfg.Bind(
-    //         "General",
-    //         "Killable",
-    //         true,
-    //         "Whether the Shisha can be killed."
-    //     );
-    //
-    //     Health = cfg.Bind(
-    //         "General",
-    //         "Health",
-    //         3,
-    //         "The amount of health the Shisha has."
-    //     );
-    //
-    //     MaxSpeed = cfg.Bind(
-    //         "General",
-    //         "Max Speed",
-    //         4f,
-    //         "The maximum speed of the Shisha."
-    //     );
-    //
-    //     MaxAcceleration = cfg.Bind(
-    //         "General",
-    //         "Max Acceleration",
-    //         5f,
-    //         "The maximum acceleration of the Shisha."
-    //     );
-    //
-    //     RunningAwayMaxSpeed = cfg.Bind(
-    //         "General",
-    //         "Running Away Max Speed",
-    //         7f,
-    //         "The maximum speed of the Shisha when running away from someone."
-    //     );
-    //
-    //     RunningAwayMaxAcceleration = cfg.Bind(
-    //         "General",
-    //         "Running Away Max Acceleration",
-    //         8f,
-    //         "The maximum acceleration of the Shisha when running away from someone."
-    //     );
-    //
-    //     WanderTimeMin = cfg.Bind(
-    //         "General",
-    //         "Wander Time Minimum",
-    //         5f,
-    //         "The minimum time that the Shisha will wander for."
-    //     );
-    //
-    //     WanderTimeMax = cfg.Bind(
-    //         "General",
-    //         "Wander Time Maximum",
-    //         45f,
-    //         "The maximum time that the Shisha will wander for."
-    //     );
-    //
-    //     AmbientSfxTimerMin = cfg.Bind(
-    //         "General",
-    //         "Ambient Sfx Time Interval Minimum",
-    //         7.5f,
-    //         "The minimum time gap between any given ambient sound effect."
-    //     );
-    //
-    //     AmbientSfxTimerMax = cfg.Bind(
-    //         "General",
-    //         "Ambient Sfx Time Interval Maximum",
-    //         30f,
-    //         "The maximum time gap between any given ambient sound effect."
-    //     );
-    //
-    //     TimeInDayLeaveEnabled = cfg.Bind(
-    //         "General",
-    //         "Leave At Night Time Enabled",
-    //         true,
-    //         "Toggles whether the Shisha will leave the map when it gets dark like other vanilla daytime entities."
-    //     );
-    //
-    //     PoopBehaviourEnabled = cfg.Bind(
-    //         "General",
-    //         "Poop Behaviour Enabled",
-    //         true,
-    //         "Toggles whether the Shisha can poop when idle."
-    //     );
-    //
-    //     PoopChance = cfg.Bind(
-    //         "General",
-    //         "Poop Chance",
-    //         0.05f,
-    //         "The chance from 0 to 1, of the Shisha pooping while idle."
-    //     );
-    //
-    //     ShishaEnabled = cfg.Bind(
-    //         "Spawn Values",
-    //         "Shisha Enabled",
-    //         true,
-    //         "Whether the Shisha is enabled (will spawn in games)."
-    //     );
-    //
-    //     ShishaSpawnRarity = cfg.Bind(
-    //         "Spawn Values",
-    //         "Shisha Spawn Rarity",
-    //         "All:30",
-    //         "Spawn weight of the Shisha on all moons. You can to add to it any moon, just follow the format (also needs LLL installed for LE moons to work with this config)."
-    //     );
-    //
-    //     ShishaMaxAmount = cfg.Bind(
-    //         "Spawn Values",
-    //         "Max Amount",
-    //         4,
-    //         "The max amount of Shisha's that can spawn."
-    //     );
-    //
-    //     ShishaPowerLevel = cfg.Bind(
-    //         "Spawn Values",
-    //         "Power Level",
-    //         0.1f,
-    //         "The power level of the Shisha."
-    //     );
-    //
     //     CommonCrystalChance = cfg.Bind(
     //         "Spawn Values",
     //         "Common Crystal Spawn Chance",
@@ -288,18 +174,5 @@ public class ShishaConfig(ConfigFile cfg) : ConfigLoader<ShishaConfig>(cfg)
     //         "The maximum value that the rare crystal can spawn with."
     //     );
     //
-    //     AmbientSoundEffectsVolume = cfg.Bind(
-    //         "Audio",
-    //         "Ambient Sound Effects Volume",
-    //         0.4f,
-    //         "The volume of the ambient sounds of the Shisha from 0 to 1."
-    //     );
-    //
-    //     FootstepSoundEffectsVolume = cfg.Bind(
-    //         "Audio",
-    //         "Footstep Sound Effects Volume",
-    //         0.7f,
-    //         "The volume of the footstep sounds of the Shisha from 0 to 1."
-    //     );
     // }
 }

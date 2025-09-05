@@ -14,7 +14,7 @@ public class IdleCompleteStateBehaviour : BaseStateMachineBehaviour
         }
 
         if (!NetworkManager.Singleton.IsServer || !netcodeController.Value.IsOwner) return;
-        ShishaPlugin.LogVerbose("Idle cycle complete");
+        ShishaPlugin.LogVerbose("Idle cycle complete.");
         netcodeController.Value.IdleCompleteStateBehaviourCallbackServerRpc();
     }
 }
