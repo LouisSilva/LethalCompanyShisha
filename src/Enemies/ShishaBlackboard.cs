@@ -1,4 +1,5 @@
 ﻿using LethalCompanyShisha.Core;
+using LethalCompanyShisha.Util;
 using UnityEngine;
 
 namespace LethalCompanyShisha;
@@ -13,6 +14,8 @@ public class ShishaBlackboard : IEnemyBlackboard
 
     public float WanderTimer { get; set; }
     public float PoopProbability { get; set; } = 0.05f;
+
+    public WeightedPicker<ShishaPoopBehaviour.PoopType> PoopPicker;
 
     public Vector2 WanderTimeRange; // new(5f, 45f)
     public Vector2 AmbientSfxTimerRange; // new(7.5f, 40f);

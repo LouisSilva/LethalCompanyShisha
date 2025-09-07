@@ -1,6 +1,8 @@
 ﻿using System.Collections;
 using GameNetcodeStuff;
 using LethalCompanyShisha.Core;
+using LethalCompanyShisha.Util;
+using System.Collections.Generic;
 using Unity.Netcode;
 using UnityEngine;
 using Random = UnityEngine.Random;
@@ -39,6 +41,14 @@ public class ShishaServer : BaseAI
         ShishaAdapter adapter = new(this);
 
         Context = new AIContext<ShishaBlackboard, ShishaAdapter>(blackboard, adapter);
+
+        _blackboard.PoopPicker = new WeightedPicker<ShishaPoopBehaviour.PoopType>(
+            new List<(ShishaPoopBehaviour.PoopType item, float weight)>
+            {
+                (ShishaPoopBehaviour.PoopType.Common, ShishaPlugin.Config.CommonCrystalSpawnWeight),
+                (ShishaPoopBehaviour.PoopType.Uncommon, ShishaPlugin.Config.UncommonCrystalSpawnWeight),
+                (ShishaPoopBehaviour.PoopType.Rare, ShishaPlugin.Config.RareCrystalSpawnWeight)
+            });
     }
 
     private void OnEnable()
@@ -168,7 +178,7 @@ public class ShishaServer : BaseAI
     {
         foreach (PlayerControllerB player in StartOfRound.Instance.allPlayerScripts)
         {
-            if (!player.isPlayerDead)
+            if (!PlayerUtil.IsPlayerDead(player))
             {
                 if (player.HasLineOfSightToPosition(transform.position + Vector3.up * 0.5f, playerViewWidth, playerViewRange, playerProximityAwareness))
                     return true;
@@ -280,68 +290,43 @@ public class ShishaServer : BaseAI
             return;
         }
 
-        int variantIndex = GetRandomVariantIndex();
+        ShishaPoopBehaviour.PoopType variant = _blackboard.PoopPicker.PickOne();
 
         GameObject poopObject = Instantiate(
-            GetPoopItemFromIndex(variantIndex).spawnPrefab,
+            GetPoopItemFromType(variant).spawnPrefab,
             poopPlaceholder.position,
             poopPlaceholder.rotation,
             poopPlaceholder);
 
         ShishaPoopBehaviour poopBehaviour = poopObject.GetComponent<ShishaPoopBehaviour>();
-        int scrapValue = CalculateScrapValue(variantIndex);
+        int scrapValue = CalculateScrapValue(variant);
         poopBehaviour.SetScrapValue(scrapValue);
 
         poopObject.GetComponent<NetworkObject>().Spawn();
         netcodeController.SpawnShishaPoopClientRpc(poopObject, scrapValue);
     }
 
-    // Old function
-    private static int GetRandomVariantIndex()
+    private static Item GetPoopItemFromType(ShishaPoopBehaviour.PoopType variant)
     {
-        int commonCrystalChance = ShishaConfig.Instance.CommonCrystalChance.Value;
-        int uncommonCrystalChance = ShishaConfig.Instance.UncommonCrystalChance.Value;
-        int rareCrystalChance = ShishaConfig.Instance.RareCrystalChance.Value;
-
-        if (commonCrystalChance + uncommonCrystalChance + rareCrystalChance != 100)
+        return variant switch
         {
-            commonCrystalChance = 65;
-            uncommonCrystalChance = 25;
-            rareCrystalChance = 10;
-        }
-
-        int chosenVariantIndex;
-        int roll = Random.Range(1, 101);
-
-        if (roll <= commonCrystalChance) chosenVariantIndex = 0;
-        else if (roll <= commonCrystalChance + uncommonCrystalChance) chosenVariantIndex = 1;
-        else chosenVariantIndex = 2;
-
-        return chosenVariantIndex;
-    }
-
-    // Make this one function in the future
-    private static Item GetPoopItemFromIndex(int variantIndex)
-    {
-        return variantIndex switch
-        {
-            0 => ShishaPlugin.ShishaRedPoopItem,
-            1 => ShishaPlugin.ShishaGreenPoopItem,
-            2 => ShishaPlugin.ShishaBluePoopItem,
+            ShishaPoopBehaviour.PoopType.Common => ShishaPlugin.ShishaRedPoopItem,
+            ShishaPoopBehaviour.PoopType.Uncommon => ShishaPlugin.ShishaGreenPoopItem,
+            ShishaPoopBehaviour.PoopType.Rare => ShishaPlugin.ShishaBluePoopItem,
             _ => ShishaPlugin.ShishaRedPoopItem
         };
     }
 
-    private static int CalculateScrapValue(int variant)
+    private static int CalculateScrapValue(ShishaPoopBehaviour.PoopType variant)
     {
         return variant switch
         {
-            0 => Random.Range(ShishaConfig.Instance.CommonCrystalMinValue.Value,
-                ShishaConfig.Instance.CommonCrystalMaxValue.Value + 1),
-            1 => Random.Range(ShishaConfig.Instance.UncommonCrystalMinValue.Value,
-                ShishaConfig.Instance.UncommonCrystalMaxValue.Value + 1),
-            2 => Random.Range(ShishaConfig.Instance.RareCrystalMinValue.Value,
-                ShishaConfig.Instance.RareCrystalMaxValue.Value + 1),
+            ShishaPoopBehaviour.PoopType.Common => Random.Range(ShishaPlugin.Config.CommonCrystalMinValue,
+                ShishaPlugin.Config.CommonCrystalMaxValue + 1),
+            ShishaPoopBehaviour.PoopType.Uncommon => Random.Range(ShishaPlugin.Config.UncommonCrystalMinValue,
+                ShishaPlugin.Config.UncommonCrystalMaxValue + 1),
+            ShishaPoopBehaviour.PoopType.Rare => Random.Range(ShishaPlugin.Config.RareCrystalMinValue,
+                ShishaPlugin.Config.RareCrystalMaxValue + 1),
             _ => 1
         };
     }
@@ -354,10 +339,10 @@ public class ShishaServer : BaseAI
         if (isEnemyDead || currentBehaviourStateIndex == (int)States.Dead || !_blackboard.IsKillable) return;
         if (_takeDamageCooldown > 0) return;
 
-        enemyHP -= force;
+        _adapter.Health -= force;
         _takeDamageCooldown = 0.03f;
 
-        if (enemyHP > 0)
+        if (_adapter.Health > 0)
         {
             _blackboard.RunAwayTransform = GetFarthestValidNodeFromPosition(out PathStatus pathStatus,
                 _adapter.Agent,
@@ -383,11 +368,21 @@ public class ShishaServer : BaseAI
     {
         if (!IsServer) return;
 
+        var config = ShishaPlugin.Config;
+
         roamSearchRoutine.loopSearch = true;
-        roamSearchRoutine.searchWidth = ShishaPlugin.Config.WanderRadius;
-        creatureVoice.volume = ShishaPlugin.Config.AmbientSfxVolume * 2;
-        creatureSFX.volume = ShishaPlugin.Config.FootstepSfxVolume * 2;
-        enemyHP = Mathf.Max(ShishaPlugin.Config.Health, 1);
+        roamSearchRoutine.searchWidth = config.WanderRadius;
+        creatureVoice.volume = config.AmbientSfxVolume * 2;
+        creatureSFX.volume = config.FootstepSfxVolume * 2;
+        _adapter.Health = Mathf.Max(config.Health, 1);
+
+        _blackboard.IsKillable = config.Killable;
+        _blackboard.IsAnchoredWanderEnabled = config.AnchoredWandering;
+        _blackboard.IsTimeInDayLeaveEnabled = config.TimeInDayLeaveEnabled;
+        _blackboard.IsPoopBehaviourEnabled = config.PoopBehaviourEnabled;
+        _blackboard.PoopProbability = config.PoopChance;
+        _blackboard.WanderTimeRange = new Vector2(config.WanderTimeMin, config.WanderTimeMax);
+        _blackboard.AmbientSfxTimerRange = new Vector2(config.AmbientSfxTimerMin, config.AmbientSfxTimerMax);
     }
 
     private void SwitchBehaviourState(int state)

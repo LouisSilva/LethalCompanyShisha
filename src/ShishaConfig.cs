@@ -29,6 +29,53 @@ public class ShishaConfig(ConfigFile cfg) : ConfigLoader<ShishaConfig>(cfg)
     public int MaxAmount { get; private set; } = 20;
     #endregion
 
+    #region Shisha Poop Spawn Settings
+    [field: Header("Shisha Poop Settings")]
+
+    [field: Tooltip("Toggles whether the Shisha can poop when idle.")]
+    public bool PoopBehaviourEnabled { get; private set; } = true;
+
+    [field: Tooltip("The chance of the Shisha pooping while idle. The setting PoopBehaviourEnabled must be set to true for this to work.")]
+    [field: Range(0f, 1f)]
+    public float PoopChance { get; private set; } = 0.05f;
+
+    [field: Tooltip("")]
+    [field: Range(0f, 999999f)]
+    public float CommonCrystalSpawnWeight { get; private set; } = 65f;
+
+    [field: Tooltip("")]
+    [field: Range(0f, 999999f)]
+    public float UncommonCrystalSpawnWeight { get; private set; } = 25f;
+
+    [field: Tooltip("")]
+    [field: Range(0f, 999999f)]
+    public float RareCrystalSpawnWeight { get; private set; } = 10f;
+
+    [field: Tooltip("The minimum value that the common crystal can spawn with.")]
+    [field: Range(0f, 999999f)]
+    public int CommonCrystalMinValue { get; private set; } = 20;
+
+    [field: Tooltip("The maximum value that the common crystal can spawn with.")]
+    [field: Range(0f, 999999f)]
+    public int CommonCrystalMaxValue { get; private set; } = 35;
+
+    [field: Tooltip("The minimum value that the uncommon crystal can spawn with.")]
+    [field: Range(0f, 999999f)]
+    public int UncommonCrystalMinValue { get; private set; } = 40;
+
+    [field: Tooltip("The maximum value that the uncommon crystal can spawn with.")]
+    [field: Range(0f, 999999f)]
+    public int UncommonCrystalMaxValue { get; private set; } = 75;
+
+    [field: Tooltip("The minimum value that the rare crystal can spawn with.")]
+    [field: Range(0f, 999999f)]
+    public int RareCrystalMinValue { get; private set; } = 80;
+
+    [field: Tooltip("The maximum value that the rare crystal can spawn with.")]
+    [field: Range(0f, 999999f)]
+    public int RareCrystalMaxValue { get; private set; } = 100;
+    #endregion
+
     #region General Settings
     [field: Header("General Settings")]
 
@@ -38,13 +85,6 @@ public class ShishaConfig(ConfigFile cfg) : ConfigLoader<ShishaConfig>(cfg)
     [field: Tooltip("The amount of health the Shisha has.")]
     [field: Range(1f, 999999f)]
     public int Health { get; private set; } = 3;
-
-    [field: Tooltip("Toggles whether the Shisha can poop when idle.")]
-    public bool PoopBehaviourEnabled { get; private set; } = true;
-
-    [field: Tooltip("The chance of the Shisha pooping while idle. The setting PoopBehaviourEnabled must be set to true for this to work.")]
-    [field: Range(0f, 1f)]
-    public float PoopChance { get; private set; } = 0.05f;
 
     [field: Tooltip("Toggles whether the Shisha will leave the map when it gets dark (like other vanilla daytime entities).")]
     public bool TimeInDayLeaveEnabled { get; private set; } = true;
@@ -98,81 +138,4 @@ public class ShishaConfig(ConfigFile cfg) : ConfigLoader<ShishaConfig>(cfg)
     [field: Range(0f, 1f)]
     public float FootstepSfxVolume { get; private set; } = 0.7f;
     #endregion
-
-    public readonly ConfigEntry<int> CommonCrystalChance;
-    public readonly ConfigEntry<int> UncommonCrystalChance;
-    public readonly ConfigEntry<int> RareCrystalChance;
-    public readonly ConfigEntry<int> CommonCrystalMinValue;
-    public readonly ConfigEntry<int> CommonCrystalMaxValue;
-    public readonly ConfigEntry<int> UncommonCrystalMinValue;
-    public readonly ConfigEntry<int> UncommonCrystalMaxValue;
-    public readonly ConfigEntry<int> RareCrystalMinValue;
-    public readonly ConfigEntry<int> RareCrystalMaxValue;
-
-    // public ShishaConfig(ConfigFile cfg)
-    // {
-    //     CommonCrystalChance = cfg.Bind(
-    //         "Spawn Values",
-    //         "Common Crystal Spawn Chance",
-    //         65,
-    //         "The percentage chance of the Shisha pooping a common sized crystal. Make sure the values of all the crystals add up to 100."
-    //     );
-    //
-    //     UncommonCrystalChance = cfg.Bind(
-    //         "Spawn Values",
-    //         "Uncommon Crystal Spawn Chance",
-    //         25,
-    //         "The percentage chance of the Shisha pooping a uncommon sized crystal. Make sure the values of all the crystals add up to 100."
-    //     );
-    //
-    //     RareCrystalChance = cfg.Bind(
-    //         "Spawn Values",
-    //         "Rare Crystal Spawn Chance",
-    //         10,
-    //         "The percentage chance of the Shisha pooping a rare sized crystal. Make sure the values of all the crystals add up to 100."
-    //     );
-    //
-    //     CommonCrystalMinValue = cfg.Bind(
-    //         "Spawn Values",
-    //         "Common Crystal Minimum Value",
-    //         20,
-    //         "The minimum value that the common crystal can spawn with."
-    //     );
-    //
-    //     CommonCrystalMaxValue = cfg.Bind(
-    //         "Spawn Values",
-    //         "Common Crystal Maximum Value",
-    //         35,
-    //         "The maximum value that the common crystal can spawn with."
-    //     );
-    //
-    //     UncommonCrystalMinValue = cfg.Bind(
-    //         "Spawn Values",
-    //         "Uncommon Crystal Minimum Value",
-    //         40,
-    //         "The minimum value that the uncommon crystal can spawn with."
-    //     );
-    //
-    //     UncommonCrystalMaxValue = cfg.Bind(
-    //         "Spawn Values",
-    //         "Uncommon Crystal Maximum Value",
-    //         75,
-    //         "The maximum value that the uncommon crystal can spawn with."
-    //     );
-    //
-    //     RareCrystalMinValue = cfg.Bind(
-    //         "Spawn Values",
-    //         "Rare Crystal Minimum Value",
-    //         80,
-    //         "The minimum value that the rare crystal can spawn with."
-    //     );
-    //
-    //     RareCrystalMaxValue = cfg.Bind(
-    //         "Spawn Values",
-    //         "Rare Crystal Maximum Value",
-    //         100,
-    //         "The maximum value that the rare crystal can spawn with."
-    //     );
-    //
-    // }
 }

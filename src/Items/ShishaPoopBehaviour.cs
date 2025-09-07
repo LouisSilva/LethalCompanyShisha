@@ -10,6 +10,13 @@ public class ShishaPoopBehaviour : PhysicsProp
 
     private readonly NetworkVariable<bool> _isPartOfShisha = new();
 
+    public enum PoopType
+    {
+        Common,
+        Uncommon,
+        Rare
+    }
+
     private void OnEnable()
     {
         SubscribeToNetworkEvents();
@@ -37,7 +44,7 @@ public class ShishaPoopBehaviour : PhysicsProp
     {
         if (_isPartOfShisha.Value)
         {
-            if (transform.parent != null)
+            if (transform.parent)
             {
                 transform.position = transform.parent.position;
                 transform.rotation = transform.parent.rotation;

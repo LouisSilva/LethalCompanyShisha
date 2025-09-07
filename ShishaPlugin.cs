@@ -1,6 +1,5 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.IO;
 using System.Linq;
 using System.Reflection;
 using System.Runtime.CompilerServices;
@@ -8,6 +7,7 @@ using BepInEx;
 using BepInEx.Bootstrap;
 using BepInEx.Logging;
 using HarmonyLib;
+using LethalCompanyShisha.Core;
 using LethalCompanyShisha.Util;
 using LethalLib.Modules;
 using LobbyCompatibility.Enums;
@@ -52,14 +52,18 @@ public class ShishaPlugin : BaseUnityPlugin
 
         _harmony.PatchAll();
 
-
         if (!Config.ShishaEnabled)
         {
             Logger.LogInfo("Shisha is disabled, not loading asset bundle.");
             return;
         }
 
-        Assets.PopulateAssetsFromFile();
+        _harmony.PatchAll(typeof(ShishaPlugin));
+        _harmony.PatchAll(typeof(ShishaPoopBehaviour));
+
+        NetcodePatcher();
+
+        Assets.LoadAssetBundle("shishabundle");
         if (!Assets.MainAssetBundle)
         {
             Logger.LogError("MainAssetBundle is null");
@@ -67,15 +71,9 @@ public class ShishaPlugin : BaseUnityPlugin
         }
 
         SetupShisha();
-
         ShishaRedPoopItem = SetupShishaPoop("Red");
         ShishaGreenPoopItem = SetupShishaPoop("Green");
         ShishaBluePoopItem = SetupShishaPoop("Blue");
-
-        _harmony.PatchAll(typeof(ShishaPlugin));
-        _harmony.PatchAll(typeof(ShishaPoopBehaviour));
-
-        NetcodePatcher();
 
         timer.Stop();
         Logger.LogInfo(
@@ -106,16 +104,16 @@ public class ShishaPlugin : BaseUnityPlugin
         switch (colour)
         {
             case "Red":
-                poopItem.minValue = ShishaConfig.Instance.CommonCrystalMinValue.Value;
-                poopItem.maxValue = ShishaConfig.Instance.CommonCrystalMaxValue.Value;
+                poopItem.minValue = Config.CommonCrystalMinValue;
+                poopItem.maxValue = Config.CommonCrystalMaxValue;
                 break;
             case "Green":
-                poopItem.minValue = ShishaConfig.Instance.UncommonCrystalMinValue.Value;
-                poopItem.maxValue = ShishaConfig.Instance.UncommonCrystalMaxValue.Value;
+                poopItem.minValue = Config.UncommonCrystalMinValue;
+                poopItem.maxValue = Config.UncommonCrystalMaxValue;
                 break;
             case "Blue":
-                poopItem.minValue = ShishaConfig.Instance.RareCrystalMinValue.Value;
-                poopItem.maxValue = ShishaConfig.Instance.RareCrystalMaxValue.Value;
+                poopItem.minValue = Config.RareCrystalMinValue;
+                poopItem.maxValue = Config.RareCrystalMaxValue;
                 break;
         }
 
@@ -234,32 +232,6 @@ public class ShishaPlugin : BaseUnityPlugin
     {
         if (Config.VerboseLoggingEnabled)
             Logger.LogDebug(message);
-    }
-}
-
-internal static class Assets
-{
-    private const string MainAssetBundleName = "shishabundle";
-    public static AssetBundle MainAssetBundle;
-
-    public static void PopulateAssetsFromFile()
-    {
-        if (MainAssetBundle) return;
-        string assemblyLocation = Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location);
-
-        if (assemblyLocation != null)
-        {
-            MainAssetBundle = AssetBundle.LoadFromFile(Path.Combine(assemblyLocation, MainAssetBundleName));
-
-            if (MainAssetBundle) return;
-            string assetsPath = Path.Combine(assemblyLocation, "Assets");
-            MainAssetBundle = AssetBundle.LoadFromFile(Path.Combine(assetsPath, MainAssetBundleName));
-        }
-
-        if (!MainAssetBundle)
-        {
-            ShishaPlugin.Logger.LogError($"Failed to load {MainAssetBundleName} bundle");
-        }
     }
 }
 
