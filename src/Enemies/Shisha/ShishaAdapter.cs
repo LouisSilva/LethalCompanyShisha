@@ -1,9 +1,9 @@
 ﻿using GameNetcodeStuff;
-using LethalCompanyShisha.Core;
+using LethalCompanyShisha.Core.AI;
 using UnityEngine;
 using UnityEngine.AI;
 
-namespace LethalCompanyShisha;
+namespace LethalCompanyShisha.Enemies;
 
 public class ShishaAdapter(EnemyAI instance) : IEnemyAdapter
 {
@@ -46,6 +46,19 @@ public class ShishaAdapter(EnemyAI instance) : IEnemyAdapter
     {
         get => instance.enemyHP;
         set => instance.enemyHP = value;
+    }
+
+    /// <summary>
+    /// Applies the given damage parameter to the health variable.
+    /// </summary>
+    /// <param name="damage">The damage to apply.</param>
+    /// <returns>True if the applied damage results in death.</returns>
+    public bool ApplyDamage(int damage)
+    {
+        Health -= damage;
+        // todo: play damage/hurt sfx
+
+        return Health <= 0;
     }
 
     #region Agent Stuff

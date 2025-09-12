@@ -2,7 +2,7 @@
 using UnityEngine;
 using UnityEngine.AI;
 
-namespace LethalCompanyShisha.Core;
+namespace LethalCompanyShisha.Core.AI;
 
 /// <summary>
 /// An adapter for interacting with the underlying <see cref="EnemyAI"/> class made by Zeekers (for the vanilla game).
@@ -15,16 +15,16 @@ public interface IEnemyAdapter
     Animator Animator { get; }
     Transform EyeTransform { get; }
     #endregion
-    
+
     GameObject[] AssignedAINodes { get; set; }
-    
+
     PlayerControllerB TargetPlayer { get; set; }
-    
+
     bool IsDead { get; }
-    
+
     float OpenDoorSpeedMultiplier { get; set; }
     float AIIntervalLength { get; set; }
-    
+
     int Health { get; set; }
 
     void StopAllPathing();

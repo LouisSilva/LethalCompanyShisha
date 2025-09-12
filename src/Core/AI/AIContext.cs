@@ -1,4 +1,4 @@
-﻿namespace LethalCompanyShisha.Core;
+﻿namespace LethalCompanyShisha.Core.AI;
 
 /// <summary>
 /// A container for all services and data sources that AI behaviors need to operate.

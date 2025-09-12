@@ -9,6 +9,7 @@ using BepInEx.Logging;
 using HarmonyLib;
 using LethalCompanyShisha.Core;
 using LethalCompanyShisha.Util;
+using LethalCompanyShisha.Util.Types;
 using LethalLib.Modules;
 using LobbyCompatibility.Enums;
 using LobbyCompatibility.Features;
@@ -30,6 +31,8 @@ public class ShishaPlugin : BaseUnityPlugin
     internal new static ShishaConfig Config { get; private set; }
     private Harmony _harmony;
 
+    internal static CachedList<Assembly> CachedAssemblies;
+
     private static EnemyType _shishaEnemyType;
 
     public static Item ShishaRedPoopItem;
@@ -39,8 +42,10 @@ public class ShishaPlugin : BaseUnityPlugin
     private void Awake()
     {
         Stopwatch timer = Stopwatch.StartNew();
+
         Logger = BepInEx.Logging.Logger.CreateLogSource($"{MyPluginInfo.PLUGIN_NAME}|{MyPluginInfo.PLUGIN_VERSION}");
         Instance = this;
+        CachedAssemblies = new CachedList<Assembly>(() => AppDomain.CurrentDomain.GetAssemblies().ToList());
 
         if (LobbyCompatibilityChecker.Enabled) LobbyCompatibilityChecker.Init();
 
@@ -131,12 +136,12 @@ public class ShishaPlugin : BaseUnityPlugin
         {
             (Dictionary<Levels.LevelTypes, int> spawnRateByLevelType,
                 Dictionary<string, int> spawnRateByCustomLevelType) = ConfigParsing(configMoonRarity);
-            Enemies.RegisterEnemy(enemy, spawnRateByLevelType, spawnRateByCustomLevelType, terminalNode,
+            LethalLib.Modules.Enemies.RegisterEnemy(enemy, spawnRateByLevelType, spawnRateByCustomLevelType, terminalNode,
                 terminalKeyword);
         }
         else
         {
-            Enemies.RegisterEnemy(enemy, 0, Levels.LevelTypes.All, terminalNode, terminalKeyword);
+            LethalLib.Modules.Enemies.RegisterEnemy(enemy, 0, Levels.LevelTypes.All, terminalNode, terminalKeyword);
         }
     }
 

@@ -1,7 +1,7 @@
-﻿using LethalCompanyShisha.Types;
+﻿using LethalCompanyShisha.Util.Types;
 using UnityEngine;
 
-namespace LethalCompanyShisha.CustomStateMachineBehaviours;
+namespace LethalCompanyShisha.Enemies.CustomStateMachineBehaviours;
 
 public class BaseStateMachineBehaviour : StateMachineBehaviour
 {

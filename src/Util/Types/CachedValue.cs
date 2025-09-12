@@ -1,7 +1,7 @@
 ﻿using System;
 using System.Diagnostics.CodeAnalysis;
 
-namespace LethalCompanyShisha.Types;
+namespace LethalCompanyShisha.Util.Types;
 
 /// <summary>
 /// Provides a thread-safe mechanism to cache the result of a function and retrieve it efficiently.

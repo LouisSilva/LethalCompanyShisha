@@ -1,7 +1,7 @@
 ﻿using System;
 using System.Runtime.CompilerServices;
 
-namespace LethalCompanyShisha.Types;
+namespace LethalCompanyShisha.Util.Types;
 
 /// <summary>
 /// A struct to cache the lifetime check of a <see cref="UnityEngine.Object"/>.
@@ -51,7 +51,7 @@ public struct CachedUnityObject<T> : IEquatable<CachedUnityObject<T>> where T : 
         _value = newValue;
         _hasValue = newValue != null;
     }
-    
+
     /// <summary>
     /// Resets the cached object to a null state.
     /// </summary>

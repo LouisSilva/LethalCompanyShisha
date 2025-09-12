@@ -1,4 +1,5 @@
 ﻿using GameNetcodeStuff;
+using LethalCompanyShisha.Core.AI.StateMachine;
 using LethalCompanyShisha.Util;
 using System;
 using System.Collections.Generic;
@@ -9,7 +10,7 @@ using UnityEngine.AI;
 using UnityEngine.Pool;
 using Random = UnityEngine.Random;
 
-namespace LethalCompanyShisha.Core;
+namespace LethalCompanyShisha.Core.AI;
 
 public abstract class BaseAI : EnemyAI
 {
@@ -18,17 +19,17 @@ public abstract class BaseAI : EnemyAI
     /// This ID is generated as a GUID on the server and synchronized to all clients.
     /// </summary>
     private readonly NetworkVariable<FixedString32Bytes> _networkId = new();
-    
+
     /// <summary>
     /// Gets the unique identifier for this object as a string.
     /// </summary>
     public string Id => _networkId.Value.ToString();
-    
+
     /// <summary>
     /// A constant representing a null or unassigned player ID.
     /// </summary>
     internal const ulong NullPlayerId = 69420;
-    
+
     internal readonly PlayerTargetableConditions PlayerTargetableConditions = new();
 
     public override void OnNetworkSpawn()
@@ -41,7 +42,9 @@ public abstract class BaseAI : EnemyAI
     public override void Start()
     {
         base.Start();
+
         Random.InitState(StartOfRound.Instance.randomMapSeed + Id.GetHashCode() - thisEnemyIndex);
+        AssignCorrectNodes();
     }
 
     #region Pathing
@@ -86,7 +89,7 @@ public abstract class BaseAI : EnemyAI
         float nearEnoughDistance = 0f)
     {
         if (!agent.isOnNavMesh) return PathStatus.Invalid;
-        
+
         // Check if the desired location is within the buffer distance
         if (Vector3.Distance(agent.transform.position, targetPosition) <= nearEnoughDistance)
             return PathStatus.Valid;
@@ -117,7 +120,7 @@ public abstract class BaseAI : EnemyAI
             {
                 PlayerControllerB player = allPlayers[i];
                 if (PlayerUtil.IsPlayerDead(player)) continue;
-                if (player.HasLineOfSightToPosition(targetPosition, 70f, 80, 1)) 
+                if (player.HasLineOfSightToPosition(targetPosition, 70f, 80, 1))
                     return PathStatus.ValidButInLos;
             }
         }
@@ -222,7 +225,7 @@ public abstract class BaseAI : EnemyAI
             pathStatus = PathStatus.Invalid;
             return null;
         }
-        
+
         HashSet<GameObject> ignoredNodesSet = CollectionPool<HashSet<GameObject>, GameObject>.Get();
         if (ignoredAINodes != null)
         {
@@ -231,7 +234,7 @@ public abstract class BaseAI : EnemyAI
                 ignoredNodesSet.Add(ignoredAINodes[i]);
             }
         }
-        
+
         List<GameObject> candidateNodes = ListPool<GameObject>.Get();
         foreach (GameObject node in givenAiNodes)
         {
@@ -239,7 +242,7 @@ public abstract class BaseAI : EnemyAI
             if (Vector3.Distance(position, node.transform.position) <= bufferDistance) continue;
             candidateNodes.Add(node);
         }
-        
+
         CollectionPool<HashSet<GameObject>, GameObject>.Release(ignoredNodesSet);
 
         if (candidateNodes.Count == 0)
@@ -291,6 +294,36 @@ public abstract class BaseAI : EnemyAI
             ListPool<GameObject>.Release(candidateNodes);
         }
     }
+
+    public void AssignCorrectNodes()
+    {
+        if (!IsServer) return;
+
+        Vector3 enemyPos = transform.position;
+        Vector3 closestOutsideNode = Vector3.positiveInfinity;
+        Vector3 closestInsideNode = Vector3.positiveInfinity;
+
+        GameObject[] outsideAINodes = GameObject.FindGameObjectsWithTag("OutsideAINode");;
+        GameObject[] insideAINodes = GameObject.FindGameObjectsWithTag("AINode");
+
+        for (int i = 0; i < outsideAINodes.Length; i++)
+        {
+            GameObject node = outsideAINodes[i];
+            Vector3 nodePos = node.transform.position;
+            if ((nodePos - enemyPos).sqrMagnitude < (closestOutsideNode - enemyPos).sqrMagnitude)
+                closestOutsideNode = nodePos;
+        }
+
+        for (int i = 0; i < insideAINodes.Length; i++)
+        {
+            GameObject node = insideAINodes[i];
+            Vector3 nodePos = node.transform.position;
+            if ((nodePos - enemyPos).sqrMagnitude < (closestInsideNode - enemyPos).sqrMagnitude)
+                closestInsideNode = nodePos;
+        }
+
+        allAINodes = (closestOutsideNode - enemyPos).sqrMagnitude < (closestInsideNode - enemyPos).sqrMagnitude ? outsideAINodes : insideAINodes;
+    }
     #endregion
 
     #region Line Of Sight Stuff
@@ -314,14 +347,14 @@ public abstract class BaseAI : EnemyAI
         {
             eyeTransform = eye;
         }
-        
+
         bool isFoggy = isOutside && !enemyType.canSeeThroughFog &&
                        TimeOfDay.Instance.currentLevelWeather == LevelWeatherType.Foggy;
 
         return LineOfSightUtil.HasLineOfSight(targetPosition, eyeTransform, viewWidth, viewRange, proximityAwareness,
             isFoggy);
     }
-    
+
     internal bool IsAPlayerInLineOfSightToEye(
         Transform eyeTransform,
         float width = 45f,
@@ -331,7 +364,7 @@ public abstract class BaseAI : EnemyAI
         for (int i = 0; i < allPlayers.Length; i++)
         {
             PlayerControllerB player = allPlayers[i];
-            
+
             if (!PlayerTargetableConditions.IsPlayerTargetable(player)) continue;
             if (HasLineOfSight(player.gameplayCamera.transform.position, eyeTransform, width, range))
                 return true;
@@ -362,9 +395,9 @@ public abstract class BaseAI : EnemyAI
         // LogVerbose($"In {nameof(GetClosestVisiblePlayer)}");
         PlayerControllerB bestTarget = null;
         float bestTargetDistanceSqr = float.MaxValue;
-        
+
         PlayerControllerB[] allPlayers = StartOfRound.Instance.allPlayerScripts;
-        
+
         // First, re-validate the current target
         float currentTargetDistanceSqr = float.MaxValue;
         if (currentTargetPlayer && PlayerTargetableConditions.IsPlayerTargetable(currentTargetPlayer))
@@ -383,7 +416,7 @@ public abstract class BaseAI : EnemyAI
         {
             PlayerControllerB potentialTarget = allPlayers[i];
             // LogVerbose($"Evaluating player {potentialTarget.playerUsername}");
-            
+
             // Skip the check if this player is the current target player; they have already been validated
             if (potentialTarget == currentTargetPlayer) continue;
             if (!PlayerTargetableConditions.IsPlayerTargetable(potentialTarget))
@@ -391,14 +424,14 @@ public abstract class BaseAI : EnemyAI
                 // LogVerbose($"Player {potentialTarget.playerUsername} is not targetable.");
                 continue;
             }
-            
+
             Vector3 targetPosition = potentialTarget.gameplayCamera.transform.position;
             if (!HasLineOfSight(targetPosition, eyeTransform, viewWidth, viewRange, proximityAwareness))
             {
                 // LogVerbose($"Player {potentialTarget.playerUsername} is not in LOS.");
                 continue;
             }
-            
+
             float potentialTargetDistanceSqr = (potentialTarget.transform.position - eyeTransform.position).sqrMagnitude;
             if (potentialTargetDistanceSqr < bestTargetDistanceSqr)
             {
@@ -406,7 +439,7 @@ public abstract class BaseAI : EnemyAI
                 bestTargetDistanceSqr = potentialTargetDistanceSqr;
             }
         }
-        
+
         // If we switched targets, ensure that the new target is significantly closer
         if (bestTarget && currentTargetPlayer && bestTarget != currentTargetPlayer)
         {
@@ -419,7 +452,7 @@ public abstract class BaseAI : EnemyAI
 
         return bestTarget;
     }
-    
+
     /// <summary>
     /// Determines the closest player, if any, is looking at the specified position.
     /// </summary>
@@ -427,7 +460,7 @@ public abstract class BaseAI : EnemyAI
     /// <param name="ignorePlayer">An optional player to exclude from the check.</param>
     /// <returns>Returns the player object that is looking at the specified position, or null if no player is found.</returns>
     internal static PlayerControllerB GetClosestPlayerLookingAtPosition(
-        Vector3 position, 
+        Vector3 position,
         PlayerControllerB ignorePlayer = null)
     {
         PlayerControllerB closestPlayer = null;
@@ -446,11 +479,11 @@ public abstract class BaseAI : EnemyAI
                 closestPlayer = player;
             }
         }
-        
+
         ListPool<PlayerControllerB>.Release(visiblePlayers);
         return closestPlayer;
     }
-    
+
     /// <summary>
     /// Returns a list of all the players who are currently looking at the specified position.
     /// </summary>
@@ -460,7 +493,7 @@ public abstract class BaseAI : EnemyAI
     /// <param name="playerViewRange">The view range of the players in units.</param>
     /// <returns>A list of players who are looking at the specified position.</returns>
     internal static List<PlayerControllerB> GetAllPlayersLookingAtPosition(
-        Vector3 position, 
+        Vector3 position,
         PlayerControllerB ignorePlayer = null,
         float playerViewWidth = 45f,
         int playerViewRange = 60)
@@ -472,7 +505,7 @@ public abstract class BaseAI : EnemyAI
             playerViewWidth: playerViewWidth,
             playerViewRange: playerViewRange);
     }
-    
+
     /// <summary>
     /// Returns a pooled list of all the players who are currently looking at the specified position.
     /// The caller must release the list using <see cref="ListPool{PlayerControllerB}"/> once finished.
@@ -483,7 +516,7 @@ public abstract class BaseAI : EnemyAI
     /// <param name="playerViewRange">The view range of the players in units.</param>
     /// <returns>A <see cref="ListPool{PlayerControllerB}"/> of players who are looking at the specified position.</returns>
     internal static List<PlayerControllerB> GetAllPlayersLookingAtPositionPooled(
-        Vector3 position, 
+        Vector3 position,
         PlayerControllerB ignorePlayer = null,
         float playerViewWidth = 45f,
         int playerViewRange = 60)
@@ -495,7 +528,7 @@ public abstract class BaseAI : EnemyAI
             playerViewWidth: playerViewWidth,
             playerViewRange: playerViewRange);
     }
-    
+
     private static List<PlayerControllerB> GetPlayersLookingAtPositionInternal(
         Vector3 position,
         List<PlayerControllerB> players,
@@ -506,11 +539,11 @@ public abstract class BaseAI : EnemyAI
         PlayerControllerB[] allPlayers = StartOfRound.Instance.allPlayerScripts;
         players.Clear();
         bool shouldIgnore = ignorePlayer;
-        
+
         for (int i = 0; i < allPlayers.Length; i++)
         {
             PlayerControllerB player = allPlayers[i];
-            
+
             if (PlayerUtil.IsPlayerDead(player) || (shouldIgnore && ignorePlayer == player)) continue;
             if (player.HasLineOfSightToPosition(position, playerViewWidth, playerViewRange))
                 players.Add(player);
@@ -532,7 +565,7 @@ public abstract class BaseAI : EnemyAI
         {
             return false;
         }
-        
+
         // 2). Check if we can draw a valid path to the player
         if (IsPathValid(agent, player.transform.position) == PathStatus.Invalid)
         {

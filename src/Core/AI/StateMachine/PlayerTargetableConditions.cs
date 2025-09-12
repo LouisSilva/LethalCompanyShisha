@@ -1,9 +1,9 @@
 ﻿using GameNetcodeStuff;
-using LethalCompanyShisha.Types;
+using LethalCompanyShisha.Util.Types;
 using System;
 using System.Collections.Generic;
 
-namespace LethalCompanyShisha.Core;
+namespace LethalCompanyShisha.Core.AI.StateMachine;
 
 public class PlayerTargetableConditions
 {
@@ -27,7 +27,7 @@ public class PlayerTargetableConditions
     public bool IsPlayerTargetable(PlayerControllerB player)
     {
         if (!player) return false;
-        
+
         for (int i = 0; i < _conditions.Count; i++)
         {
             Func<PlayerControllerB, bool> condition = _conditions[i];
@@ -36,11 +36,11 @@ public class PlayerTargetableConditions
 
         return true;
     }
-    
+
     public bool IsPlayerTargetable(CachedUnityObject<PlayerControllerB> player)
     {
         if (!player.HasValue) return false;
-        
+
         for (int i = 0; i < _conditions.Count; i++)
         {
             Func<PlayerControllerB, bool> condition = _conditions[i];

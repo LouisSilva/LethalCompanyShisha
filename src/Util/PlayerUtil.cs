@@ -3,27 +3,27 @@ using System.Runtime.CompilerServices;
 
 namespace LethalCompanyShisha.Util;
 
-internal static class PlayerUtil 
+internal static class PlayerUtil
 {
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    internal static PlayerControllerB GetPlayerFromClientId(ulong playerClientId) 
+    internal static PlayerControllerB GetPlayerFromClientId(ulong playerClientId)
     {
         return StartOfRound.Instance.allPlayerScripts[playerClientId];
     }
-    
+
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    internal static PlayerControllerB GetPlayerFromClientId(int playerClientId) 
+    internal static PlayerControllerB GetPlayerFromClientId(int playerClientId)
     {
         return StartOfRound.Instance.allPlayerScripts[playerClientId];
     }
-    
+
     // Used so I dont mix up `PlayerControllerB.playerClientId` and `PlayerControllerB.actualClientId`
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     internal static ulong GetClientIdFromPlayer(PlayerControllerB player)
     {
         return player.playerClientId;
     }
-    
+
     /// <summary>
     /// Determines whether the specified player is dead.
     /// </summary>
@@ -33,6 +33,6 @@ internal static class PlayerUtil
     {
         if (!player) return true;
         return player.isPlayerDead || !player.isPlayerControlled;
-        
+
     }
 }

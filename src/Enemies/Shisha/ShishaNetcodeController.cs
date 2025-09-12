@@ -1,19 +1,15 @@
 ﻿using System;
 using Unity.Netcode;
-using UnityEngine;
 
-namespace LethalCompanyShisha;
+namespace LethalCompanyShisha.Enemies;
 
 public class ShishaNetcodeController : NetworkBehaviour
 {
-    internal event Action OnIdleCompleteStateBehaviourCallback;
+    internal event Action OnOneShotIdleAnimationComplete;
     internal event Action<int> OnSetAnimationTrigger;
     internal event Action<NetworkObjectReference, int> OnSpawnShishaPoop;
     internal event Action<int> OnPlayAmbientSfx;
-
     internal event Action<int, bool> OnSetAnimationBool;
-
-    [HideInInspector] internal readonly NetworkVariable<int> CurrentBehaviourStateIndex = new();
 
     [ClientRpc]
     internal void PlayAmbientSfxClientRpc(int clipIndex)
@@ -40,8 +36,8 @@ public class ShishaNetcodeController : NetworkBehaviour
     }
 
     [ServerRpc(RequireOwnership = false)]
-    internal void IdleCompleteStateBehaviourCallbackServerRpc()
+    internal void OneShotIdleAnimationCompleteServerRpc()
     {
-        OnIdleCompleteStateBehaviourCallback?.Invoke();
+        OnOneShotIdleAnimationComplete?.Invoke();
     }
 }

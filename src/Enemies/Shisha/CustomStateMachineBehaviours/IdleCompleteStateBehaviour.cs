@@ -1,7 +1,7 @@
 ﻿using Unity.Netcode;
 using UnityEngine;
 
-namespace LethalCompanyShisha.CustomStateMachineBehaviours;
+namespace LethalCompanyShisha.Enemies.CustomStateMachineBehaviours;
 
 public class IdleCompleteStateBehaviour : BaseStateMachineBehaviour
 {
@@ -9,12 +9,12 @@ public class IdleCompleteStateBehaviour : BaseStateMachineBehaviour
     {
         if (!netcodeController.HasValue)
         {
-            ShishaPlugin.LogVerbose("Netcode Controller is null");
+            ShishaPlugin.LogVerbose("[IdleCompleteStateBehaviour] Netcode Controller is null");
             return;
         }
 
         if (!NetworkManager.Singleton.IsServer || !netcodeController.Value.IsOwner) return;
-        ShishaPlugin.LogVerbose("Idle cycle complete.");
-        netcodeController.Value.IdleCompleteStateBehaviourCallbackServerRpc();
+        ShishaPlugin.LogVerbose("[IdleCompleteStateBehaviour] Idle cycle complete.");
+        netcodeController.Value.OneShotIdleAnimationCompleteServerRpc();
     }
 }
