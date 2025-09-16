@@ -2,6 +2,7 @@
 using GameNetcodeStuff;
 using LethalCompanyShisha.Core.AI;
 using LethalCompanyShisha.Core.AI.StateMachine;
+using LethalCompanyShisha.Core.Integration;
 using LethalCompanyShisha.Util;
 using System.Collections.Generic;
 using UnityEngine;
@@ -19,6 +20,7 @@ public class ShishaServer : StateManagedAI<ShishaServer.States, ShishaServer>
 
     public enum States
     {
+        Spawning,
         Roaming,
         ArrivingAtIdlePosition,
         Idle,
@@ -26,10 +28,19 @@ public class ShishaServer : StateManagedAI<ShishaServer.States, ShishaServer>
         Dead,
     }
 
+    public enum Gender
+    {
+        Male,
+        Female
+    }
+
     private float _ambientAudioTimer;
     private float _lastHitTime;
+
     private int _numberOfAmbientAudioClips;
+
     private bool _networkEventsSubscribed;
+    private static bool _hasRegisteredImperiumInsights;
 
     public AIContext<ShishaBlackboard, ShishaAdapter> Context { get; private set; }
     private ShishaBlackboard _blackboard => Context.Blackboard;
@@ -68,12 +79,26 @@ public class ShishaServer : StateManagedAI<ShishaServer.States, ShishaServer>
 
         SubscribeToNetworkEvents();
         InitializeConfigValues();
+        RegisterImperiumInsights();
 
         _numberOfAmbientAudioClips = GetComponent<ShishaClient>().ambientAudioClips.Length;
+    }
 
-        _blackboard.SpawnPosition = transform.position;
+    private void RegisterImperiumInsights()
+    {
+        bool isAgentNull = !_adapter.Agent;
 
-        LogVerbose("Shisha spawned!");
+        if (ImperiumIntegration.IsLoaded && !_hasRegisteredImperiumInsights)
+        {
+            Imperium.API.Visualization.InsightsFor<ShishaServer>()
+                .SetPersonalNameGenerator(entity => entity.Id)
+                .RegisterInsight("Behaviour State", entity => entity.CurrentState.GetStateType().ToString())
+                .RegisterInsight("Acceleration",
+                    entity => !isAgentNull ? $"{entity._adapter.Agent.acceleration:0.0}" : "0")
+                .RegisterInsight("Gender", entity => entity._blackboard.Gender.ToString());
+        }
+
+        _hasRegisteredImperiumInsights = true;
     }
 
     public void ManageAmbientSfx()
@@ -101,7 +126,7 @@ public class ShishaServer : StateManagedAI<ShishaServer.States, ShishaServer>
 
     protected override States DetermineInitialState()
     {
-        return _blackboard.IsWanderEnabled ? States.Roaming : States.Idle;
+        return States.Spawning;
     }
 
     public override void DaytimeEnemyLeave()
@@ -171,6 +196,7 @@ public class ShishaServer : StateManagedAI<ShishaServer.States, ShishaServer>
     private void InitializeConfigValues()
     {
         if (!IsServer) return;
+        LogVerbose("Initializing config values...");
 
         ShishaConfig config = ShishaPlugin.Config;
 
@@ -181,13 +207,14 @@ public class ShishaServer : StateManagedAI<ShishaServer.States, ShishaServer>
         _adapter.Health = Mathf.Max(config.Health, 1);
 
         _blackboard.IsKillable = config.Killable;
+        _blackboard.IsWanderEnabled = config.Wander;
         _blackboard.IsAnchoredWanderEnabled = config.AnchoredWandering;
         _blackboard.IsTimeInDayLeaveEnabled = config.TimeInDayLeaveEnabled;
         _blackboard.IsPoopBehaviourEnabled = config.PoopBehaviourEnabled;
         _blackboard.PoopProbability = config.PoopChance;
         _blackboard.PoopPlaceholder = poopPlaceholder;
-        // _blackboard.WanderTimeRange = new Vector2(config.WanderTimeMin, config.WanderTimeMax);
-        // _blackboard.AmbientSfxTimerRange = new Vector2(config.AmbientSfxTimerMin, config.AmbientSfxTimerMax);
+        _blackboard.Gender = Gender.Female;
+        _blackboard.NetcodeController = netcodeController;
     }
 
     private void SubscribeToNetworkEvents()
@@ -206,5 +233,10 @@ public class ShishaServer : StateManagedAI<ShishaServer.States, ShishaServer>
         netcodeController.OnOneShotIdleAnimationComplete -= HandleOneShotIdleAnimationComplete;
 
         _networkEventsSubscribed = false;
+    }
+
+    protected override string GetLogPrefix()
+    {
+        return $"[ShishaServerAI {Id}]";
     }
 }

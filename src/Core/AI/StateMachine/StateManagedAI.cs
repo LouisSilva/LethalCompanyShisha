@@ -88,12 +88,13 @@ public abstract class StateManagedAI<TState, TEnemyAI> : BaseAI
                 Type stateBehaviourBaseType = typeof(BehaviourState<TState, TEnemyAI>);
                 Type enemyAiType = typeof(TEnemyAI);
 
-                for (int i = 0; i < ShishaPlugin.CachedAssemblies.Value.Count; i++)
-                {
-                    Assembly assembly = ShishaPlugin.CachedAssemblies.Value[i];
-                    ShishaPlugin.LogVerbose($"Found assembly: {assembly.FullName}");
+                var cachedAssemblies = ShishaPlugin.CachedAssemblies.Value;
 
-                    if (!assembly.FullName.Contains("Biodiversity")) continue;
+                for (int i = 0; i < cachedAssemblies.Count; i++)
+                {
+                    Assembly assembly = cachedAssemblies[i];
+
+                    if (!assembly.FullName.Contains("LethalCompanyShisha")) continue;
 
                     try
                     {
@@ -206,7 +207,7 @@ public abstract class StateManagedAI<TState, TEnemyAI> : BaseAI
     protected Dictionary<string, AudioSource> AudioSources { get; set; } = new();
 
     /// <summary>
-    /// Initializes the base <see cref="BiodiverseAI"/> and, if on the server,
+    /// Initializes the base <see cref="BaseAI"/> and, if on the server,
     /// initializes the state dictionary and transitions to the initial state determined by <see cref="DetermineInitialState"/>.
     /// </summary>
     public override void Start()

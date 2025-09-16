@@ -33,7 +33,7 @@ public class ShishaPlugin : BaseUnityPlugin
 
     internal static CachedList<Assembly> CachedAssemblies;
 
-    private static EnemyType _shishaEnemyType;
+    internal EnemyType ShishaEnemyType;
 
     public static Item ShishaRedPoopItem;
     public static Item ShishaGreenPoopItem;
@@ -49,7 +49,7 @@ public class ShishaPlugin : BaseUnityPlugin
 
         if (LobbyCompatibilityChecker.Enabled) LobbyCompatibilityChecker.Init();
 
-        Logger.LogDebug("Creating base biodiversity config."); // Can't use LogVerbose here yet because we need the config to tell us whether verbose logging is enabled or not.
+        Logger.LogDebug("Creating Shisha config."); // Can't use LogVerbose here yet because we need the config to tell us whether verbose logging is enabled or not.
         Config = new ShishaConfig(base.Config);
 
         LogVerbose("Creating Harmony instance...");
@@ -87,19 +87,19 @@ public class ShishaPlugin : BaseUnityPlugin
 
     private void SetupShisha()
     {
-        _shishaEnemyType = Assets.MainAssetBundle.LoadAsset<EnemyType>("ShishaEnemyType");
-        _shishaEnemyType.MaxCount = Config.MaxAmount;
-        _shishaEnemyType.PowerLevel = Config.PowerLevel;
-        _shishaEnemyType.normalizedTimeInDayToLeave = Config.TimeInDayLeaveEnabled ? 0.6f : 1f;
-        _shishaEnemyType.canDie = Config.Killable;
+        ShishaEnemyType = Assets.MainAssetBundle.LoadAsset<EnemyType>("ShishaEnemyType");
+        ShishaEnemyType.MaxCount = Config.MaxAmount;
+        ShishaEnemyType.PowerLevel = Config.PowerLevel;
+        ShishaEnemyType.normalizedTimeInDayToLeave = Config.TimeInDayLeaveEnabled ? 0.6f : 1f;
+        ShishaEnemyType.canDie = Config.Killable;
 
         TerminalNode shishaTerminalNode = Assets.MainAssetBundle.LoadAsset<TerminalNode>("ShishaTerminalNode");
         TerminalKeyword shishaTerminalKeyword =
             Assets.MainAssetBundle.LoadAsset<TerminalKeyword>("ShishaTerminalKeyword");
 
-        NetworkPrefabs.RegisterNetworkPrefab(_shishaEnemyType.enemyPrefab);
-        Utilities.FixMixerGroups(_shishaEnemyType.enemyPrefab);
-        RegisterEnemyWithConfig(Config.ShishaEnabled, Config.Rarity, _shishaEnemyType, shishaTerminalNode, shishaTerminalKeyword);
+        NetworkPrefabs.RegisterNetworkPrefab(ShishaEnemyType.enemyPrefab);
+        Utilities.FixMixerGroups(ShishaEnemyType.enemyPrefab);
+        RegisterEnemyWithConfig(Config.ShishaEnabled, Config.Rarity, ShishaEnemyType, shishaTerminalNode, shishaTerminalKeyword);
     }
 
     private static Item SetupShishaPoop(string colour)

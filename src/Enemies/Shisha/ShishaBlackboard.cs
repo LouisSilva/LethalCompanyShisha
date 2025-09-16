@@ -21,6 +21,9 @@ public class ShishaBlackboard : IEnemyBlackboard
     // public Vector2 WanderTimeRange; // new(5f, 45f)
     // public Vector2 AmbientSfxTimerRange; // new(7.5f, 40f);
 
+    public ShishaServer PartnerShisha { get; set; }
+    public ShishaServer.Gender Gender { get; set; }
+
     public Vector3 SpawnPosition { get; set; }
 
     public Transform RunAwayTransform { get; set; }

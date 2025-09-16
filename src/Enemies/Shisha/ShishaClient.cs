@@ -3,7 +3,6 @@ using System.Collections;
 using System.Collections.Generic;
 using Unity.Netcode;
 using UnityEngine;
-using Random = UnityEngine.Random;
 
 namespace LethalCompanyShisha.Enemies;
 
@@ -16,25 +15,28 @@ public class ShishaClient : MonoBehaviour
     public static readonly int DoBow = Animator.StringToHash("DoBow");
     public static readonly int IsGrazing = Animator.StringToHash("IsGrazing");
     public static readonly int IsLyingDown = Animator.StringToHash("IsLyingDown");
+    private static readonly int Speed = Animator.StringToHash("Speed");
 
 #pragma warning disable 0649
-    [SerializeField] private Renderer renderer;
-    [SerializeField] private Transform poopPlaceholder;
-    [SerializeField] private ParticleSystem poofParticleSystem;
-    [SerializeField] private GameObject scanNode;
-
     [Header("Audio")]
     [SerializeField] private AudioSource creatureVoice;
     [SerializeField] private AudioSource creatureSfx;
 
     [Tooltip("An array of audio clips that can be played randomly at intervals while the creature is wandering.")]
-    public AudioClip[] ambientAudioClips;
+    [SerializeField] public AudioClip[] ambientAudioClips;
+    [SerializeField] public AudioClip[] walkingAudioClips;
 
-    [Tooltip("An array of audio clips that can be played randomly at intervals while the creature is moving.")]
-    public AudioClip[] walkingAudioClips;
+    [Header("Renderers")]
+    [SerializeField] private SkinnedMeshRenderer mainBodyRenderer;
+    [SerializeField] private SkinnedMeshRenderer hornsRenderer;
+    [SerializeField] private GameObject rootRenderer;
 
-    [Tooltip("The interval between playing walking audio clips.")]
-    public float walkingAudioInterval = 0.5f;
+    [Header("Particle Effects")]
+    [SerializeField] private ParticleSystem poofParticleSystem;
+
+    [Header("Misc Objects")]
+    [SerializeField] private Transform poopPlaceholder;
+    [SerializeField] private GameObject scanNode;
 
     [Header("Controllers")] [Space(5f)]
     [SerializeField] private ShishaNetcodeController netcodeController;
@@ -47,9 +49,7 @@ public class ShishaClient : MonoBehaviour
 
     private bool _networkEventsSubscribed;
 
-    private const float MaxWalkAnimationSpeedMultiplier = 2;
     private float _agentCurrentSpeed;
-    private float _walkingAudioTimer;
 
     private void Awake()
     {
@@ -81,48 +81,7 @@ public class ShishaClient : MonoBehaviour
         _agentCurrentSpeed = Mathf.Lerp(_agentCurrentSpeed, (position - _agentLastPosition).magnitude / Time.deltaTime,
             0.75f);
         _agentLastPosition = position;
-
-        switch (_currentBehaviourStateIndex)
-        {
-            case (int)ShishaServer.States.Roaming or (int)ShishaServer.States.RunningAway:
-            {
-                if (_agentCurrentSpeed <= walkSpeedThreshold && _agentCurrentSpeed > 0)
-                {
-                    animator.SetBool(IsWalking, true);
-                    animator.SetBool(IsRunning, false);
-
-                    float walkSpeedMultiplier = Mathf.Clamp(_agentCurrentSpeed / walkSpeedThreshold, 0,
-                        MaxWalkAnimationSpeedMultiplier);
-                    animator.SetFloat(WalkSpeed, walkSpeedMultiplier);
-                }
-                else if (_agentCurrentSpeed > walkSpeedThreshold)
-                {
-                    animator.SetBool(IsWalking, true);
-                    animator.SetBool(IsRunning, true);
-
-                    float runSpeedMultiplier = Mathf.Clamp(_agentCurrentSpeed / 4f, 0, 5);
-                    animator.SetFloat(RunSpeed, runSpeedMultiplier);
-                }
-                else
-                {
-                    animator.SetBool(IsWalking, false);
-                    animator.SetBool(IsRunning, false);
-                }
-
-                _walkingAudioTimer -= Time.deltaTime;
-                if (walkingAudioClips != null && _walkingAudioTimer <= 0f)
-                {
-                    AudioClip audioClipToPlay = walkingAudioClips[Random.Range(0, walkingAudioClips.Length)];
-                    creatureSfx.Stop(true);
-                    creatureSfx.PlayOneShot(audioClipToPlay);
-                    WalkieTalkie.TransmitOneShotAudio(creatureSfx, audioClipToPlay, creatureSfx.volume);
-
-                    _walkingAudioTimer = walkingAudioInterval;
-                }
-
-                break;
-            }
-        }
+        animator.SetFloat(Speed, _agentCurrentSpeed);
     }
 
     private void HandlePlayAmbientSfx(int clipIndex)
@@ -144,7 +103,34 @@ public class ShishaClient : MonoBehaviour
         _currentPoop.transform.SetParent(poopPlaceholder, false);
         _currentPoop.SetScrapValue(scrapValue);
 
-        ShishaPlugin.LogVerbose("Shisha poop spawned");
+        ShishaPlugin.LogVerbose("Shisha poop spawned.");
+    }
+
+    private void HandleSetGender(ShishaServer.Gender gender)
+    {
+        ShishaPlugin.LogVerbose($"[ShishaClient] Setting gender of this Shisha to {gender}.");
+        bool shouldHornsRendererBeEnabled = hornsRenderer.enabled;
+        Vector3 newScale = rootRenderer.transform.localScale;
+
+        switch (gender)
+        {
+            case ShishaServer.Gender.Male:
+            {
+                shouldHornsRendererBeEnabled = true;
+                newScale = new Vector3(0.9f, 0.9f, 0.9f);
+                break;
+            }
+
+            case ShishaServer.Gender.Female:
+            {
+                shouldHornsRendererBeEnabled = false;
+                newScale = new Vector3(0.8f, 0.8f, 0.8f);
+                break;
+            }
+        }
+
+        hornsRenderer.enabled = shouldHornsRendererBeEnabled;
+        gameObject.transform.localScale = newScale;
     }
 
     public void OnAnimationEventDropShishaPoop()
@@ -172,12 +158,12 @@ public class ShishaClient : MonoBehaviour
         yield return new WaitForSeconds(1);
 
         poofParticleSystem.Play();
-        renderer.enabled = false;
+        mainBodyRenderer.enabled = false;
         creatureSfx.Stop(true);
         Destroy(scanNode.gameObject);
         yield return new WaitForSeconds(0.1f);
 
-        Destroy(renderer.gameObject);
+        Destroy(mainBodyRenderer.gameObject);
         if (!netcodeController.IsServer) yield break;
 
         SpawnDeathPoopsServerRpc();
@@ -245,6 +231,7 @@ public class ShishaClient : MonoBehaviour
         netcodeController.OnSpawnShishaPoop += HandleSpawnShishaPoop;
         netcodeController.OnPlayAmbientSfx += HandlePlayAmbientSfx;
         netcodeController.OnSetAnimationBool += HandleSetAnimationBool;
+        netcodeController.OnSetGender += HandleSetGender;
 
         _networkEventsSubscribed = true;
     }
@@ -257,6 +244,7 @@ public class ShishaClient : MonoBehaviour
         netcodeController.OnSpawnShishaPoop -= HandleSpawnShishaPoop;
         netcodeController.OnPlayAmbientSfx -= HandlePlayAmbientSfx;
         netcodeController.OnSetAnimationBool -= HandleSetAnimationBool;
+        netcodeController.OnSetGender -= HandleSetGender;
 
         _networkEventsSubscribed = false;
     }

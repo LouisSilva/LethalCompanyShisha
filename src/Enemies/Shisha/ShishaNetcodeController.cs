@@ -10,6 +10,13 @@ public class ShishaNetcodeController : NetworkBehaviour
     internal event Action<NetworkObjectReference, int> OnSpawnShishaPoop;
     internal event Action<int> OnPlayAmbientSfx;
     internal event Action<int, bool> OnSetAnimationBool;
+    internal event Action<ShishaServer.Gender> OnSetGender;
+
+    [ClientRpc]
+    internal void SetGenderClientRpc(ShishaServer.Gender gender)
+    {
+        OnSetGender?.Invoke(gender);
+    }
 
     [ClientRpc]
     internal void PlayAmbientSfxClientRpc(int clipIndex)

@@ -93,6 +93,9 @@ public class ShishaConfig(ConfigFile cfg) : ConfigLoader<ShishaConfig>(cfg)
     #region Movement Settings
     [field: Header("Movement Settings")]
 
+    [field: Tooltip("When enabled, the Shisha will wander around the map.")]
+    public bool Wander { get; private set; } = true;
+
     [field: Tooltip("The maximum distance from the Shisha's current position within which it can wander.")]
     [field: Range(0f, 999999f)]
     public float WanderRadius { get; private set; } = 50f;

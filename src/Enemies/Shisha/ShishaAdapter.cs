@@ -1,5 +1,6 @@
 ﻿using GameNetcodeStuff;
 using LethalCompanyShisha.Core.AI;
+using LethalCompanyShisha.Util.Types;
 using UnityEngine;
 using UnityEngine.AI;
 
@@ -135,5 +136,32 @@ public class ShishaAdapter(EnemyAI instance) : IEnemyAdapter
 
         return false;
     }
+    #endregion
+
+    #region Network Stuff
+    public float NetworkPositionInterpolationAggressiveness
+    {
+        get => instance.syncMovementSpeed;
+        set => instance.syncMovementSpeed = value;
+    }
+
+    public float NetworkPositionUpdateDistanceTheshold
+    {
+        get => instance.updatePositionThreshold;
+        set => instance.updatePositionThreshold = value;
+    }
+
+    public void SetNetworkFidelityProfile(NetworkPositionalSyncFidelity profile)
+    {
+        NetworkPositionInterpolationAggressiveness = profile.InterpolationAggressiveness;
+        NetworkPositionUpdateDistanceTheshold = profile.UpdateDistanceThreshold;
+    }
+
+    [Tooltip("Low-accuracy, low-bandwidth setting.")]
+    public NetworkPositionalSyncFidelity ShishaFidelityProfile = new()
+    {
+        InterpolationAggressiveness = 0.25f, // Smooth and fluid to hide infrequent updates.
+        UpdateDistanceThreshold = 1.0f       // Only send an update after moving a full meter.
+    };
     #endregion
 }
