@@ -74,11 +74,12 @@ public class ShishaServer : StateManagedAI<ShishaServer.States, ShishaServer>
 
     public override void Start()
     {
+        InitializeConfigValues();
+
         base.Start();
         if (!IsServer) return;
 
         SubscribeToNetworkEvents();
-        InitializeConfigValues();
         RegisterImperiumInsights();
 
         _numberOfAmbientAudioClips = GetComponent<ShishaClient>().ambientAudioClips.Length;

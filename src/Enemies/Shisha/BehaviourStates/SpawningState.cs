@@ -1,8 +1,10 @@
 ﻿using LethalCompanyShisha.Core.AI.StateMachine;
 using LethalCompanyShisha.Core.StateMachine;
+using System.Collections;
 using Unity.Netcode;
 using UnityEngine;
 using UnityEngine.Scripting;
+using Object = UnityEngine.Object;
 
 namespace LethalCompanyShisha.Enemies.BehaviourStates;
 
@@ -29,14 +31,17 @@ internal class SpawningState : BehaviourState<ShishaServer.States, ShishaServer>
         {
             EnemyAIInstance.LogVerbose("Partner Shisha is null, spawning a Shisha of the opposite gender...");
             EnemyAIInstance.Context.Blackboard.NetcodeController.SetGenderClientRpc(EnemyAIInstance.Context.Blackboard.Gender);
-            SpawnPartnerShisha();
+            EnemyAIInstance.StartCoroutine(SpawnPartnerShisha());
         }
 
         EnemyAIInstance.SwitchBehaviourState(EnemyAIInstance.Context.Blackboard.IsWanderEnabled ? ShishaServer.States.Roaming : ShishaServer.States.Idle);
     }
 
-    private void SpawnPartnerShisha()
+    private IEnumerator SpawnPartnerShisha()
     {
+        yield return new WaitForSeconds(0.1f);
+        yield return null;
+
         ShishaServer.Gender genderToSpawn = EnemyAIInstance.Context.Blackboard.Gender == ShishaServer.Gender.Female
             ? ShishaServer.Gender.Male
             : ShishaServer.Gender.Female;
@@ -55,34 +60,14 @@ internal class SpawningState : BehaviourState<ShishaServer.States, ShishaServer>
         if (!spawnedShishaNetObj)
         {
             EnemyAIInstance.LogWarning($"Could not find the NetworkObject on {spawnedShishaObj.name}. This Shisha's partner will not be spawned.");
-            return;
+            yield break;
         }
 
         spawnedShishaNetObj.Spawn(destroyWithScene: true);
         RoundManager.Instance.currentEnemyPower += ShishaPlugin.Instance.ShishaEnemyType.PowerLevel;
+
+        yield return new WaitForSeconds(0.25f);
+        yield return null;
         spawnedShisha.Context.Blackboard.NetcodeController.SetGenderClientRpc(spawnedShisha.Context.Blackboard.Gender);
     }
-
-    // private IEnumerator CompleteSpawnSequence()
-    // {
-    //     yield return new WaitForSeconds(0.1f);
-    //     yield return null;
-    //
-    //     try
-    //     {
-    //         if (!EnemyAIInstance.Context.Blackboard.PartnerShisha)
-    //         {
-    //             EnemyAIInstance.LogVerbose("Partner Shisha is null, spawning a Shisha of the opposite gender...");
-    //             EnemyAIInstance.Context.Blackboard.NetcodeController.SetGenderClientRpc(EnemyAIInstance.Context
-    //                 .Blackboard.Gender);
-    //             SpawnPartnerShisha();
-    //         }
-    //     }
-    //     catch (Exception ex)
-    //     {
-    //         EnemyAIInstance.LogError(ex);
-    //     }
-    //
-    //     EnemyAIInstance.SwitchBehaviourState(EnemyAIInstance.Context.Blackboard.IsWanderEnabled ? ShishaServer.States.Roaming : ShishaServer.States.Idle);
-    // }
 }
