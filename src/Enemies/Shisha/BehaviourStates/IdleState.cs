@@ -53,7 +53,7 @@ internal class IdleState : BehaviourState<ShishaServer.States, ShishaServer>
             EnemyAIInstance.Context.Blackboard.NetcodeController.SetAnimationTriggerClientRpc(_currentIdleAnimation);
             _isIdleAnimationLooping = false;
         }
-        // If more one shot idle animations are added in the future, this if statement will need to be changed
+        // If more one shot idle animations are added in the future, this if statement will need to be changed to something that can handle both one shot and bool idle animations
         else
         {
             EnemyAIInstance.Context.Blackboard.NetcodeController.SetAnimationBoolClientRpc(_currentIdleAnimation, true);
@@ -110,7 +110,6 @@ internal class IdleState : BehaviourState<ShishaServer.States, ShishaServer>
 
                 break;
             }
-
         }
     }
 

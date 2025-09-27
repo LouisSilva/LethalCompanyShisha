@@ -21,6 +21,7 @@ internal class ArrivingAtIdlePositionState : BehaviourState<ShishaServer.States,
     {
         base.OnStateEnter(ref initData);
 
+        EnemyAIInstance.Context.Adapter.StopAllPathing();
         EnemyAIInstance.Context.Adapter.BeginGracefulStop();
     }
 

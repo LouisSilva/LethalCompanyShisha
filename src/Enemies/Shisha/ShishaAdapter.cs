@@ -98,6 +98,8 @@ public class ShishaAdapter(EnemyAI instance) : IEnemyAdapter
 
     public void StopAllPathing()
     {
+        if (instance.)
+
         // Resets the destination (so imperium doesn't draw the path to some old destination vector we arent using anymore)
         instance.destination =
             RoundManager.Instance.GetNavMeshPosition(instance.transform.position, RoundManager.Instance.navHit, -1f);

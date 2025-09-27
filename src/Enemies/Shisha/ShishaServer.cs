@@ -191,7 +191,19 @@ public class ShishaServer : StateManagedAI<ShishaServer.States, ShishaServer>
         _lastHitTime = Time.time;
         _adapter.TargetPlayer = playerWhoHit;
 
-        SwitchBehaviourState(!_adapter.ApplyDamage(force) ? States.RunningAway : States.Dead);
+        bool isNowDead = _adapter.ApplyDamage(force);
+        if (isNowDead)
+        {
+            SwitchBehaviourState(States.Dead);
+        }
+        else
+        {
+            _blackboard.NetcodeController.SetAnimationTriggerClientRpc(ShishaClient.OnHit);
+            if (CurrentState.GetStateType() != States.RunningAway)
+            {
+                SwitchBehaviourState(States.RunningAway);
+            }
+        }
     }
 
     private void InitializeConfigValues()
@@ -204,7 +216,7 @@ public class ShishaServer : StateManagedAI<ShishaServer.States, ShishaServer>
         roamSearchRoutine.loopSearch = true;
         roamSearchRoutine.searchWidth = config.WanderRadius;
         creatureVoice.volume = config.AmbientSfxVolume * 2;
-        creatureSFX.volume = config.FootstepSfxVolume * 2;
+        creatureSFX.volume = config.FootstepSfxVolume;
         _adapter.Health = Mathf.Max(config.Health, 1);
 
         _blackboard.IsKillable = config.Killable;

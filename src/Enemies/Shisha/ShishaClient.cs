@@ -12,7 +12,7 @@ public class ShishaClient : MonoBehaviour
     public static readonly int OnHit = Animator.StringToHash("OnHit");
     public static readonly int IsDead = Animator.StringToHash("isDead");
     public static readonly int DoPoop = Animator.StringToHash("DoPoop");
-    public static readonly int DoBow = Animator.StringToHash("DoBow");
+    public static readonly int IsBowing = Animator.StringToHash("IsBowing");
     public static readonly int IsGrazing = Animator.StringToHash("IsGrazing");
     public static readonly int IsLyingDown = Animator.StringToHash("IsLyingDown");
     private static readonly int Speed = Animator.StringToHash("Speed");
@@ -70,6 +70,7 @@ public class ShishaClient : MonoBehaviour
     {
         if (!animator) animator = GetComponent<Animator>();
 
+        SubscribeToNetworkEvents();
         InitializeConfigValues();
         AddStateMachineBehaviours(animator);
     }
@@ -227,6 +228,8 @@ public class ShishaClient : MonoBehaviour
     {
         if (_networkEventsSubscribed || netcodeController) return;
 
+        ShishaPlugin.LogVerbose($"[ShishaClient] Subscribed to network events.");
+
         netcodeController.OnSetAnimationTrigger += HandleSetAnimationTrigger;
         netcodeController.OnSpawnShishaPoop += HandleSpawnShishaPoop;
         netcodeController.OnPlayAmbientSfx += HandlePlayAmbientSfx;
@@ -239,6 +242,8 @@ public class ShishaClient : MonoBehaviour
     private void UnsubscribeFromNetworkEvents()
     {
         if (!_networkEventsSubscribed || netcodeController) return;
+
+        ShishaPlugin.LogVerbose($"[ShishaClient] Unsubscribed from network events.");
 
         netcodeController.OnSetAnimationTrigger -= HandleSetAnimationTrigger;
         netcodeController.OnSpawnShishaPoop -= HandleSpawnShishaPoop;

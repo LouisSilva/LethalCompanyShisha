@@ -66,8 +66,22 @@ internal class SpawningState : BehaviourState<ShishaServer.States, ShishaServer>
         spawnedShishaNetObj.Spawn(destroyWithScene: true);
         RoundManager.Instance.currentEnemyPower += ShishaPlugin.Instance.ShishaEnemyType.PowerLevel;
 
-        yield return new WaitForSeconds(0.25f);
-        yield return null;
-        spawnedShisha.Context.Blackboard.NetcodeController.SetGenderClientRpc(spawnedShisha.Context.Blackboard.Gender);
+        const float timeout = 10f;
+        float elapsed = 0f;
+
+        while (spawnedShisha?.Context?.Blackboard.NetcodeController == null && elapsed < timeout)
+        {
+            elapsed += Time.deltaTime;
+            yield return null;
+        }
+
+        if (spawnedShisha?.Context?.Blackboard?.NetcodeController != null)
+        {
+            spawnedShisha.Context.Blackboard.NetcodeController.SetGenderClientRpc(spawnedShisha.Context.Blackboard.Gender);
+        }
+        else
+        {
+            EnemyAIInstance.LogError("The spawned shisha's netcode controller is null.");
+        }
     }
 }
