@@ -64,7 +64,6 @@ public class ShishaAdapter(EnemyAI instance) : IEnemyAdapter
 
     #region Agent Stuff
     public float AgentSpeedChangeRate { get; set; } = 10f;
-
     private float _targetSpeed;
 
     internal void MoveAgent()
@@ -98,7 +97,8 @@ public class ShishaAdapter(EnemyAI instance) : IEnemyAdapter
 
     public void StopAllPathing()
     {
-        if (instance.)
+        ShishaServer shishaServer = (ShishaServer)instance;
+        if (shishaServer.RoamSearchRoutine.inProgress) instance.StopSearch(shishaServer.RoamSearchRoutine);
 
         // Resets the destination (so imperium doesn't draw the path to some old destination vector we arent using anymore)
         instance.destination =

@@ -52,7 +52,6 @@ internal class SpawningState : BehaviourState<ShishaServer.States, ShishaServer>
         if (spawnedShishaObj.TryGetComponent(out ShishaServer spawnedShisha))
         {
             spawnedShisha.Context.Blackboard.PartnerShisha = EnemyAIInstance;
-            spawnedShisha.Context.Blackboard.Gender = genderToSpawn;
         }
 
         NetworkObject spawnedShishaNetObj = spawnedShishaObj.GetComponent<NetworkObject>();
@@ -77,7 +76,7 @@ internal class SpawningState : BehaviourState<ShishaServer.States, ShishaServer>
 
         if (spawnedShisha?.Context?.Blackboard?.NetcodeController != null)
         {
-            spawnedShisha.Context.Blackboard.NetcodeController.SetGenderClientRpc(spawnedShisha.Context.Blackboard.Gender);
+            spawnedShisha.Context.Blackboard.NetcodeController.SetGenderClientRpc(genderToSpawn);
         }
         else
         {

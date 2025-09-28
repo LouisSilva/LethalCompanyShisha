@@ -27,7 +27,7 @@ internal class RoamingState : BehaviourState<ShishaServer.States, ShishaServer>
         EnemyAIInstance.Context.Blackboard.WanderCycleEndTime = NetworkManager.Singleton.ServerTime.Time + Random.Range(ShishaPlugin.Config.WanderTimeMin, ShishaPlugin.Config.WanderTimeMax);
 
         EnemyAIInstance.StartSearch(EnemyAIInstance.Context.Blackboard.IsAnchoredWanderEnabled ?
-            EnemyAIInstance.Context.Blackboard.SpawnPosition : EnemyAIInstance.Context.Adapter.Transform.position, EnemyAIInstance.roamSearchRoutine);
+            EnemyAIInstance.Context.Blackboard.SpawnPosition : EnemyAIInstance.Context.Adapter.Transform.position, EnemyAIInstance.RoamSearchRoutine);
     }
 
     internal override void UpdateBehaviour()
@@ -42,7 +42,6 @@ internal class RoamingState : BehaviourState<ShishaServer.States, ShishaServer>
     {
         base.OnStateExit(transition);
 
-        if (EnemyAIInstance.roamSearchRoutine.inProgress)
-            EnemyAIInstance.StopSearch(EnemyAIInstance.roamSearchRoutine);
+        EnemyAIInstance.Context.Adapter.StopAllPathing();
     }
 }

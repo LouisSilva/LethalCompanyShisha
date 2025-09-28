@@ -13,7 +13,7 @@ namespace LethalCompanyShisha.Enemies;
 public class ShishaServer : StateManagedAI<ShishaServer.States, ShishaServer>
 {
 #pragma warning disable 0649
-    [SerializeField] public AISearchRoutine roamSearchRoutine;
+    [SerializeField] public AISearchRoutine RoamSearchRoutine;
     [SerializeField] private Transform poopPlaceholder;
     [SerializeField] public ShishaNetcodeController netcodeController;
 #pragma warning restore 0649
@@ -213,8 +213,8 @@ public class ShishaServer : StateManagedAI<ShishaServer.States, ShishaServer>
 
         ShishaConfig config = ShishaPlugin.Config;
 
-        roamSearchRoutine.loopSearch = true;
-        roamSearchRoutine.searchWidth = config.WanderRadius;
+        RoamSearchRoutine.loopSearch = true;
+        RoamSearchRoutine.searchWidth = config.WanderRadius;
         creatureVoice.volume = config.AmbientSfxVolume * 2;
         creatureSFX.volume = config.FootstepSfxVolume;
         _adapter.Health = Mathf.Max(config.Health, 1);
@@ -226,7 +226,7 @@ public class ShishaServer : StateManagedAI<ShishaServer.States, ShishaServer>
         _blackboard.IsPoopBehaviourEnabled = config.PoopBehaviourEnabled;
         _blackboard.PoopProbability = config.PoopChance;
         _blackboard.PoopPlaceholder = poopPlaceholder;
-        _blackboard.Gender = Gender.Female;
+        _blackboard.Gender = Gender.Male;
         _blackboard.NetcodeController = netcodeController;
     }
 

@@ -10,7 +10,7 @@ public class ShishaClient : MonoBehaviour
 {
     public static readonly int ForceWalk = Animator.StringToHash("ForceWalk");
     public static readonly int OnHit = Animator.StringToHash("OnHit");
-    public static readonly int IsDead = Animator.StringToHash("isDead");
+    public static readonly int IsDead = Animator.StringToHash("IsDead");
     public static readonly int DoPoop = Animator.StringToHash("DoPoop");
     public static readonly int IsBowing = Animator.StringToHash("IsBowing");
     public static readonly int IsGrazing = Animator.StringToHash("IsGrazing");
@@ -110,6 +110,7 @@ public class ShishaClient : MonoBehaviour
     private void HandleSetGender(ShishaServer.Gender gender)
     {
         ShishaPlugin.LogVerbose($"[ShishaClient] Setting gender of this Shisha to {gender}.");
+
         bool shouldHornsRendererBeEnabled = hornsRenderer.enabled;
         Vector3 newScale = rootRenderer.transform.localScale;
 
@@ -134,26 +135,28 @@ public class ShishaClient : MonoBehaviour
         gameObject.transform.localScale = newScale;
     }
 
-    public void OnAnimationEventDropShishaPoop()
+    public void DropPoop()
     {
         if (!_currentPoop) return;
 
         _currentPoop.parentObject = null;
         _currentPoop.transform.SetParent(StartOfRound.Instance.propsContainer, true);
         _currentPoop.EnablePhysics(true);
-        _currentPoop.FallToGround(true);
-        _currentPoop.transform.SetParent(RoundManager.Instance.spawnedScrapContainer, true);
-        _currentPoop.isHeld = false;
+        _currentPoop.fallTime = 0f;
+
+        Transform parent;
+        _currentPoop.startFallingPosition =
+            (parent = _currentPoop.transform.parent).InverseTransformPoint(_currentPoop.transform.position);
+        _currentPoop.targetFloorPosition = parent.InverseTransformPoint(transform.position);
+        _currentPoop.floorYRot = -1;
         _currentPoop.grabbable = true;
         _currentPoop.grabbableToEnemies = true;
+        _currentPoop.isHeld = false;
+        _currentPoop.isHeldByEnemy = false;
+        _currentPoop = null;
     }
 
-    public void OnAnimationEventDeathAnimationComplete()
-    {
-        StartCoroutine(CompleteDeathSequence());
-    }
-
-    private IEnumerator CompleteDeathSequence()
+    public IEnumerator CompleteDeathSequence()
     {
         ShishaPlugin.LogVerbose($"In {nameof(CompleteDeathSequence)}");
         yield return new WaitForSeconds(1);
@@ -199,7 +202,7 @@ public class ShishaClient : MonoBehaviour
     private void InitializeConfigValues()
     {
         creatureVoice.volume = ShishaPlugin.Config.AmbientSfxVolume * 2;
-        creatureSfx.volume = ShishaPlugin.Config.FootstepSfxVolume * 2;
+        creatureSfx.volume = ShishaPlugin.Config.FootstepSfxVolume;
     }
 
     private void AddStateMachineBehaviours(Animator receivedAnimator)
@@ -226,7 +229,7 @@ public class ShishaClient : MonoBehaviour
 
     private void SubscribeToNetworkEvents()
     {
-        if (_networkEventsSubscribed || netcodeController) return;
+        if (_networkEventsSubscribed || !netcodeController) return;
 
         ShishaPlugin.LogVerbose($"[ShishaClient] Subscribed to network events.");
 
@@ -241,7 +244,7 @@ public class ShishaClient : MonoBehaviour
 
     private void UnsubscribeFromNetworkEvents()
     {
-        if (!_networkEventsSubscribed || netcodeController) return;
+        if (!_networkEventsSubscribed || !netcodeController) return;
 
         ShishaPlugin.LogVerbose($"[ShishaClient] Unsubscribed from network events.");
 
