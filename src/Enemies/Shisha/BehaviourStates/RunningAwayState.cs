@@ -37,6 +37,7 @@ internal class RunningAwayState : BehaviourState<ShishaServer.States, ShishaServ
             return;
         }
 
+        EnemyAIInstance.Context.Blackboard.RunAwayPosition = runAwayPosition;
         EnemyAIInstance.Context.Adapter.MoveToDestination(runAwayPosition);
         EnemyAIInstance.Context.Adapter.SetMovementProfile(ShishaPlugin.Config.RunningAwayMaxSpeed, ShishaPlugin.Config.Acceleration);
     }

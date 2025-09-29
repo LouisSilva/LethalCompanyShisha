@@ -16,7 +16,7 @@ internal class TransitionFromRunningAway : StateTransition<ShishaServer.States, 
 
         if (agent.pathPending) return false;
         return agent.remainingDistance <= agent.stoppingDistance &&
-               (EnemyAIInstance.Context.Adapter.Transform.position - EnemyAIInstance.Context.Blackboard.RunAwayTransform.position).sqrMagnitude <= 6;
+               (EnemyAIInstance.Context.Adapter.Transform.position - EnemyAIInstance.Context.Blackboard.RunAwayPosition).sqrMagnitude <= 6;
     }
 
     internal override ShishaServer.States NextState()

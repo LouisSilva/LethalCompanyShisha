@@ -14,7 +14,7 @@ public class ShishaClient : MonoBehaviour
     public static readonly int DoPoop = Animator.StringToHash("DoPoop");
     public static readonly int IsBowing = Animator.StringToHash("IsBowing");
     public static readonly int IsGrazing = Animator.StringToHash("IsGrazing");
-    public static readonly int IsLyingDown = Animator.StringToHash("IsLyingDown");
+    public static readonly int DoLieDown = Animator.StringToHash("DoLieDown");
     private static readonly int Speed = Animator.StringToHash("Speed");
 
 #pragma warning disable 0649

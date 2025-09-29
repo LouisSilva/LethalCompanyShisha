@@ -31,7 +31,7 @@ internal class IdleState : BehaviourState<ShishaServer.States, ShishaServer>
             {
                 (ShishaClient.DoPoop, poopProbabilityWeight),
                 (ShishaClient.IsGrazing, 0.7f),
-                (ShishaClient.IsLyingDown, 0.25f)
+                (ShishaClient.DoLieDown, 0.25f)
             });
     }
 
@@ -45,15 +45,15 @@ internal class IdleState : BehaviourState<ShishaServer.States, ShishaServer>
 
         _currentIdleAnimation = EnemyAIInstance.Context.Blackboard.IsWanderEnabled
             ? _idleAnimationPicker.PickOne()
-            : ShishaClient.IsLyingDown;
+            : ShishaClient.DoLieDown;
 
-        if (_currentIdleAnimation == ShishaClient.DoPoop)
+        // todo: Clean this up
+        if (_currentIdleAnimation == ShishaClient.DoPoop || _currentIdleAnimation == ShishaClient.DoLieDown)
         {
-            SpawnShishaPoop();
+            if (_currentIdleAnimation == ShishaClient.DoPoop) SpawnShishaPoop();
             EnemyAIInstance.Context.Blackboard.NetcodeController.SetAnimationTriggerClientRpc(_currentIdleAnimation);
             _isIdleAnimationLooping = false;
         }
-        // If more one shot idle animations are added in the future, this if statement will need to be changed to something that can handle both one shot and bool idle animations
         else
         {
             EnemyAIInstance.Context.Blackboard.NetcodeController.SetAnimationBoolClientRpc(_currentIdleAnimation, true);

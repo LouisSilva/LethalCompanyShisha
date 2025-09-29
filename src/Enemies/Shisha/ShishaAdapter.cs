@@ -97,8 +97,7 @@ public class ShishaAdapter(EnemyAI instance) : IEnemyAdapter
 
     public void StopAllPathing()
     {
-        ShishaServer shishaServer = (ShishaServer)instance;
-        if (shishaServer.RoamSearchRoutine.inProgress) instance.StopSearch(shishaServer.RoamSearchRoutine);
+        instance.StopSearch(instance.currentSearch);
 
         // Resets the destination (so imperium doesn't draw the path to some old destination vector we arent using anymore)
         instance.destination =

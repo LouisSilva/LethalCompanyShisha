@@ -25,8 +25,8 @@ public class ShishaBlackboard : IEnemyBlackboard
     public ShishaServer.Gender Gender { get; set; }
 
     public Vector3 SpawnPosition { get; set; }
+    public Vector3 RunAwayPosition { get; set; }
 
-    public Transform RunAwayTransform { get; set; }
     public Transform PoopPlaceholder { get; set; }
 
     public ShishaNetcodeController NetcodeController { get; set; }
