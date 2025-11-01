@@ -17,19 +17,29 @@ public class ShishaClient : MonoBehaviour
     public static readonly int DoLieDown = Animator.StringToHash("DoLieDown");
     private static readonly int Speed = Animator.StringToHash("Speed");
 
+    public enum SkinType : byte
+    {
+        Default = 0,
+        Spooky = 1,
+        Hell = 2,
+        Snow = 3,
+    }
+
 #pragma warning disable 0649
     [Header("Audio")]
     [SerializeField] private AudioSource creatureVoice;
-    [SerializeField] private AudioSource creatureSfx;
+    [SerializeField] public AudioSource creatureSfx;
 
     [Tooltip("An array of audio clips that can be played randomly at intervals while the creature is wandering.")]
-    [SerializeField] public AudioClip[] ambientAudioClips;
-    [SerializeField] public AudioClip[] walkingAudioClips;
+    [SerializeField] public AudioClip[] ambientSfx;
+    [SerializeField] public AudioClip[] footstepSfx;
 
     [Header("Renderers")]
     [SerializeField] private SkinnedMeshRenderer mainBodyRenderer;
     [SerializeField] private SkinnedMeshRenderer hornsRenderer;
     [SerializeField] private GameObject rootRenderer;
+    [SerializeField] private Material[] skinMaterials;
+    [SerializeField] private Material[] hornSkinMaterials;
 
     [Header("Particle Effects")]
     [SerializeField] private ParticleSystem poofParticleSystem;
@@ -87,7 +97,7 @@ public class ShishaClient : MonoBehaviour
 
     private void HandlePlayAmbientSfx(int clipIndex)
     {
-        AudioClip ambientAudioClipToPlay = ambientAudioClips[clipIndex];
+        AudioClip ambientAudioClipToPlay = ambientSfx[clipIndex];
         creatureVoice.PlayOneShot(ambientAudioClipToPlay);
         WalkieTalkie.TransmitOneShotAudio(creatureVoice, ambientAudioClipToPlay);
         RoundManager.Instance.PlayAudibleNoise(creatureVoice.gameObject.transform.position);
@@ -135,6 +145,14 @@ public class ShishaClient : MonoBehaviour
         gameObject.transform.localScale = newScale;
     }
 
+    private void HandleSetSkinType(SkinType skinType)
+    {
+        ShishaPlugin.LogVerbose($"[ShishaClient] Setting the skin type of this Shisha to {skinType}.");
+
+        mainBodyRenderer.material = skinMaterials[(int)skinType];
+        hornsRenderer.material = hornSkinMaterials[(int)skinType];
+    }
+
     public void DropPoop()
     {
         if (!_currentPoop) return;
@@ -142,17 +160,11 @@ public class ShishaClient : MonoBehaviour
         _currentPoop.parentObject = null;
         _currentPoop.transform.SetParent(StartOfRound.Instance.propsContainer, true);
         _currentPoop.EnablePhysics(true);
-        _currentPoop.fallTime = 0f;
-
-        Transform parent;
-        _currentPoop.startFallingPosition =
-            (parent = _currentPoop.transform.parent).InverseTransformPoint(_currentPoop.transform.position);
-        _currentPoop.targetFloorPosition = parent.InverseTransformPoint(transform.position);
-        _currentPoop.floorYRot = -1;
+        _currentPoop.FallToGround(true);
+        _currentPoop.transform.SetParent(RoundManager.Instance.spawnedScrapContainer, true);
+        _currentPoop.isHeld = false;
         _currentPoop.grabbable = true;
         _currentPoop.grabbableToEnemies = true;
-        _currentPoop.isHeld = false;
-        _currentPoop.isHeldByEnemy = false;
         _currentPoop = null;
     }
 
@@ -162,12 +174,12 @@ public class ShishaClient : MonoBehaviour
         yield return new WaitForSeconds(1);
 
         poofParticleSystem.Play();
-        mainBodyRenderer.enabled = false;
+        rootRenderer.gameObject.SetActive(false);
         creatureSfx.Stop(true);
         Destroy(scanNode.gameObject);
         yield return new WaitForSeconds(0.1f);
 
-        Destroy(mainBodyRenderer.gameObject);
+        Destroy(rootRenderer);
         if (!netcodeController.IsServer) yield break;
 
         SpawnDeathPoopsServerRpc();
@@ -238,6 +250,7 @@ public class ShishaClient : MonoBehaviour
         netcodeController.OnPlayAmbientSfx += HandlePlayAmbientSfx;
         netcodeController.OnSetAnimationBool += HandleSetAnimationBool;
         netcodeController.OnSetGender += HandleSetGender;
+        netcodeController.OnSetSkinType += HandleSetSkinType;
 
         _networkEventsSubscribed = true;
     }
@@ -253,6 +266,7 @@ public class ShishaClient : MonoBehaviour
         netcodeController.OnPlayAmbientSfx -= HandlePlayAmbientSfx;
         netcodeController.OnSetAnimationBool -= HandleSetAnimationBool;
         netcodeController.OnSetGender -= HandleSetGender;
+        netcodeController.OnSetSkinType -= HandleSetSkinType;
 
         _networkEventsSubscribed = false;
     }

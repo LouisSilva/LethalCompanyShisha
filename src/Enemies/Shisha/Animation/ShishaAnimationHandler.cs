@@ -16,5 +16,19 @@ public class ShishaAnimationHandler : MonoBehaviour
     {
         StartCoroutine(shishaClient.CompleteDeathSequence());
     }
+
+    public void OnAnimationEventFootstep()
+    {
+        int clipIndex = Random.Range(0, shishaClient.footstepSfx.Length);
+        AudioClip audioClipToPlay = shishaClient.footstepSfx[clipIndex];
+
+        float oldPitch = shishaClient.creatureSfx.pitch;
+
+        //if (shishaClient.creatureSfx.isPlaying) shishaClient.creatureSfx.Stop();
+
+        shishaClient.creatureSfx.pitch = Random.Range(oldPitch - 0.05f, oldPitch + 0.05f);
+        shishaClient.creatureSfx.PlayOneShot(audioClipToPlay);
+        shishaClient.creatureSfx.pitch = oldPitch;
+    }
     #endregion
 }

@@ -11,6 +11,13 @@ public class ShishaNetcodeController : NetworkBehaviour
     internal event Action<int> OnPlayAmbientSfx;
     internal event Action<int, bool> OnSetAnimationBool;
     internal event Action<ShishaServer.Gender> OnSetGender;
+    internal event Action<ShishaClient.SkinType> OnSetSkinType;
+
+    [ClientRpc]
+    internal void SetSkinTypeClientRpc(ShishaClient.SkinType skinType)
+    {
+        OnSetSkinType?.Invoke(skinType);
+    }
 
     [ClientRpc]
     internal void SetGenderClientRpc(ShishaServer.Gender gender)
