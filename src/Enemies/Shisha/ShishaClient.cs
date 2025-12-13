@@ -17,14 +17,6 @@ public class ShishaClient : MonoBehaviour
     public static readonly int DoLieDown = Animator.StringToHash("DoLieDown");
     private static readonly int Speed = Animator.StringToHash("Speed");
 
-    public enum SkinType : byte
-    {
-        Default = 0,
-        Spooky = 1,
-        Hell = 2,
-        Snow = 3,
-    }
-
 #pragma warning disable 0649
     [Header("Audio")]
     [SerializeField] private AudioSource creatureVoice;
@@ -38,8 +30,7 @@ public class ShishaClient : MonoBehaviour
     [SerializeField] private SkinnedMeshRenderer mainBodyRenderer;
     [SerializeField] private SkinnedMeshRenderer hornsRenderer;
     [SerializeField] private GameObject rootRenderer;
-    [SerializeField] private Material[] skinMaterials;
-    [SerializeField] private Material[] hornSkinMaterials;
+    [SerializeField] private List<SkinMaterialMap> skinMaterialMappings;
 
     [Header("Particle Effects")]
     [SerializeField] private ParticleSystem poofParticleSystem;
@@ -53,6 +44,8 @@ public class ShishaClient : MonoBehaviour
     [SerializeField] private Animator animator;
 #pragma warning restore 0649
 
+    private Dictionary<ShishaSkinType, (Material skinMaterial, Material hornsMaterial)> _runtimeSkinMaterialMap;
+
     private ShishaPoopBehaviour _currentPoop;
 
     private Vector3 _agentLastPosition;
@@ -64,6 +57,19 @@ public class ShishaClient : MonoBehaviour
     private void Awake()
     {
         if (!netcodeController) netcodeController = GetComponent<ShishaNetcodeController>();
+
+        _runtimeSkinMaterialMap = new Dictionary<ShishaSkinType, (Material, Material)>(skinMaterialMappings.Count);
+
+        foreach (SkinMaterialMap mapping in skinMaterialMappings)
+        {
+            if (_runtimeSkinMaterialMap.ContainsKey(mapping.skinType))
+            {
+                ShishaPlugin.LogVerbose($"[ShishaClient] Duplicate SkinType key found in material mappings: {mapping.skinType}. Ignoring duplicate.");
+                continue;
+            }
+
+            _runtimeSkinMaterialMap.Add(mapping.skinType, (mapping.bodyMaterial, mapping.hornsMaterial));
+        }
     }
 
     private void OnEnable()
@@ -103,20 +109,6 @@ public class ShishaClient : MonoBehaviour
         RoundManager.Instance.PlayAudibleNoise(creatureVoice.gameObject.transform.position);
     }
 
-    private void HandleSpawnShishaPoop(NetworkObjectReference poopNetworkObjectReference, int scrapValue)
-    {
-        if (!poopNetworkObjectReference.TryGet(out NetworkObject poopNetworkObject)) return;
-        ShishaPlugin.LogVerbose("Poop network object was not null!");
-
-        _currentPoop = poopNetworkObject.GetComponent<ShishaPoopBehaviour>();
-        _currentPoop.transform.position = poopPlaceholder.transform.position;
-        _currentPoop.transform.rotation = poopPlaceholder.transform.rotation;
-        _currentPoop.transform.SetParent(poopPlaceholder, false);
-        _currentPoop.SetScrapValue(scrapValue);
-
-        ShishaPlugin.LogVerbose("Shisha poop spawned.");
-    }
-
     private void HandleSetGender(ShishaServer.Gender gender)
     {
         ShishaPlugin.LogVerbose($"[ShishaClient] Setting gender of this Shisha to {gender}.");
@@ -145,26 +137,65 @@ public class ShishaClient : MonoBehaviour
         gameObject.transform.localScale = newScale;
     }
 
-    private void HandleSetSkinType(SkinType skinType)
+    private void HandleSetSkinType(ShishaSkinType skinType)
     {
         ShishaPlugin.LogVerbose($"[ShishaClient] Setting the skin type of this Shisha to {skinType}.");
 
-        mainBodyRenderer.material = skinMaterials[(int)skinType];
-        hornsRenderer.material = hornSkinMaterials[(int)skinType];
+        if (skinType == ShishaSkinType.Default)
+        {
+            ShishaPlugin.Logger.LogWarning($"[ShishaClient] In {nameof(ShishaSkinType)}, the given skinType was Default.");
+            skinType = ShishaSkinType.Default1;
+        }
+
+        (Material skinMaterial, Material hornsMaterial) materials = GetMaterialsForSkin(skinType);
+
+        mainBodyRenderer.material = materials.skinMaterial;
+        hornsRenderer.material = materials.hornsMaterial;
+    }
+
+    private (Material skinMaterial, Material hornsMaterial) GetMaterialsForSkin(ShishaSkinType skinType)
+    {
+        if (_runtimeSkinMaterialMap.TryGetValue(skinType, out (Material skinMaterial, Material hornsMaterial) materials))
+        {
+            return materials;
+        }
+
+        ShishaPlugin.Logger.LogWarning($"[ShishaClient] No material mapping found for skin type: {skinType}");
+        return (null, null);
+    }
+
+    private void HandleSpawnShishaPoop(NetworkObjectReference poopNetworkObjectReference, int scrapValue)
+    {
+        if (!poopNetworkObjectReference.TryGet(out NetworkObject poopNetworkObject)) return;
+
+        _currentPoop = poopNetworkObject.GetComponent<ShishaPoopBehaviour>();
+        _currentPoop.transform.position = poopPlaceholder.transform.position;
+        _currentPoop.transform.rotation = poopPlaceholder.transform.rotation;
+        _currentPoop.transform.SetParent(poopPlaceholder, false);
+        _currentPoop.SetScrapValue(scrapValue);
+
+        ShishaPlugin.LogVerbose("[ShishaClient] Shisha poop spawned.");
     }
 
     public void DropPoop()
     {
+        ShishaPlugin.LogVerbose($"[ShishaClient] Is _currentPoop null?: {_currentPoop == null}.");
         if (!_currentPoop) return;
 
         _currentPoop.parentObject = null;
-        _currentPoop.transform.SetParent(StartOfRound.Instance.propsContainer, true);
+        _currentPoop.transform.SetParent(null);
         _currentPoop.EnablePhysics(true);
-        _currentPoop.FallToGround(true);
-        _currentPoop.transform.SetParent(RoundManager.Instance.spawnedScrapContainer, true);
-        _currentPoop.isHeld = false;
+        _currentPoop.fallTime = 0f;
+        _currentPoop.startFallingPosition = _currentPoop.transform.parent.InverseTransformPoint(_currentPoop.transform.position);
+
+        Vector3 targetWorldPosition = Physics.Raycast(_currentPoop.transform.position, Vector3.down, out RaycastHit hit, 200f, StartOfRound.Instance.collidersAndRoomMask, QueryTriggerInteraction.Ignore) ?
+            hit.point : _currentPoop.transform.position;
+
+        _currentPoop.targetFloorPosition = _currentPoop.transform.parent.InverseTransformPoint(targetWorldPosition);
         _currentPoop.grabbable = true;
         _currentPoop.grabbableToEnemies = true;
+        _currentPoop.isHeld = false;
+        _currentPoop.isHeldByEnemy = false;
         _currentPoop = null;
     }
 

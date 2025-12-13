@@ -3,10 +3,10 @@ using GameNetcodeStuff;
 using LethalCompanyShisha.Core.AI;
 using LethalCompanyShisha.Core.AI.StateMachine;
 using LethalCompanyShisha.Core.Integration;
+using LethalCompanyShisha.Core.Integration.Seichi;
 using LethalCompanyShisha.Util;
 using System.Collections.Generic;
 using UnityEngine;
-using UnityEngine.SceneManagement;
 using Random = UnityEngine.Random;
 
 namespace LethalCompanyShisha.Enemies;
@@ -34,10 +34,6 @@ public class ShishaServer : StateManagedAI<ShishaServer.States, ShishaServer>
         Male,
         Female
     }
-
-    private static SeichiAltMapIntegration snowichiIntegration;
-    private static SeichiAltMapIntegration scorchiIntegration;
-    private static SeichiAltMapIntegration spookichiIntegration;
 
     private float _ambientAudioTimer;
     private float _lastHitTime;
@@ -71,18 +67,14 @@ public class ShishaServer : StateManagedAI<ShishaServer.States, ShishaServer>
     {
         SubscribeToNetworkEvents();
 
-        snowichiIntegration?.AddTrackedShisha(this);
-        scorchiIntegration?.AddTrackedShisha(this);
-        spookichiIntegration?.AddTrackedShisha(this);
+        if (IsServer) SeichiMapTypeIntegration.Instance.RegisterShisha(this);
     }
 
     private void OnDisable()
     {
         UnsubscribeFromNetworkEvents();
 
-        snowichiIntegration?.RemoveTrackedShisha(this);
-        scorchiIntegration?.RemoveTrackedShisha(this);
-        spookichiIntegration?.RemoveTrackedShisha(this);
+        if (IsServer) SeichiMapTypeIntegration.Instance.UnregisterShisha(this);
     }
 
     public override void Start()
@@ -95,7 +87,7 @@ public class ShishaServer : StateManagedAI<ShishaServer.States, ShishaServer>
 
         SubscribeToNetworkEvents();
         RegisterImperiumInsights();
-        CheckIfSceneIsSeichi();
+        SeichiMapTypeIntegration.Instance.RegisterShisha(this);
 
         _numberOfAmbientAudioClips = GetComponent<ShishaClient>().ambientSfx.Length;
     }
@@ -115,101 +107,6 @@ public class ShishaServer : StateManagedAI<ShishaServer.States, ShishaServer>
         }
 
         _hasRegisteredImperiumInsights = true;
-    }
-
-    private void CheckIfSceneIsSeichi()
-    {
-        if (snowichiIntegration && scorchiIntegration && spookichiIntegration) return;
-
-        Scene targetScene = SceneManager.GetSceneByName("Seichi");
-        if (targetScene.IsValid() && targetScene.isLoaded)
-        {
-            GameObject[] rootObjects = targetScene.GetRootGameObjects();
-            Transform environmentTransform = null;
-            foreach (GameObject rootObject in rootObjects)
-            {
-                if (rootObject.name == "Environment") environmentTransform = rootObject.transform;
-            }
-
-            if (!environmentTransform)
-            {
-                LogVerbose("Couldn't find the Environment transform.");
-                return;
-            }
-
-            if (!snowichiIntegration)
-            {
-                // Find Snowichi
-                GameObject snowichiManagerObject = environmentTransform.Find("v0xxManager/Snowichi").gameObject;
-                if (snowichiManagerObject)
-                {
-                    snowichiIntegration = snowichiManagerObject.GetComponent<SeichiAltMapIntegration>();
-                    if (!snowichiIntegration)
-                    {
-                        snowichiIntegration = snowichiManagerObject.AddComponent<SeichiAltMapIntegration>();
-                    }
-                }
-            }
-
-            if (!scorchiIntegration)
-            {
-                // Find Scorchi
-                GameObject scorchiManagerObject = environmentTransform.Find("WebleyManager/Scorchi").gameObject;
-                if (scorchiManagerObject)
-                {
-                    scorchiIntegration = scorchiManagerObject.GetComponent<SeichiAltMapIntegration>();
-                    if (!scorchiIntegration)
-                    {
-                        scorchiIntegration = scorchiManagerObject.AddComponent<SeichiAltMapIntegration>();
-                    }
-                }
-            }
-
-            if (!spookichiIntegration)
-            {
-                // Find Spookichi
-                GameObject spookichiManagerObject = environmentTransform.Find("Halloween/Spookichi").gameObject;
-                if (spookichiManagerObject)
-                {
-                    spookichiIntegration = spookichiManagerObject.GetComponent<SeichiAltMapIntegration>();
-                    if (!spookichiIntegration)
-                    {
-                        spookichiIntegration = spookichiManagerObject.AddComponent<SeichiAltMapIntegration>();
-                    }
-                }
-            }
-
-            snowichiIntegration.AddTrackedShisha(this);
-            scorchiIntegration.AddTrackedShisha(this);
-            spookichiIntegration.AddTrackedShisha(this);
-
-            snowichiIntegration.skinTypeWhenEnabled = ShishaClient.SkinType.Snow;
-            scorchiIntegration.skinTypeWhenEnabled = ShishaClient.SkinType.Hell;
-            spookichiIntegration.skinTypeWhenEnabled = ShishaClient.SkinType.Spooky;
-
-
-            ShishaClient.SkinType setSkinTypeTo = ShishaClient.SkinType.Default;
-            if (spookichiIntegration.gameObject.activeSelf)
-            {
-                setSkinTypeTo = ShishaClient.SkinType.Spooky;
-            }
-            else if (snowichiIntegration.gameObject.activeSelf)
-            {
-                setSkinTypeTo = ShishaClient.SkinType.Snow;
-            }
-            else if (scorchiIntegration.gameObject.activeSelf)
-            {
-                setSkinTypeTo = ShishaClient.SkinType.Hell;
-            }
-
-            _blackboard.NetcodeController.SetSkinTypeClientRpc(setSkinTypeTo);
-        }
-        else
-        {
-            snowichiIntegration = null;
-            scorchiIntegration = null;
-            spookichiIntegration = null;
-        }
     }
 
     public void ManageAmbientSfx()

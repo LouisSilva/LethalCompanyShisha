@@ -24,7 +24,7 @@ public class ShishaConfig(ConfigFile cfg) : ConfigLoader<ShishaConfig>(cfg)
     [field: Range(0f, 100f)]
     public float PowerLevel { get; private set; } = 0.5f;
 
-    [field: Tooltip("The max amount of Shishas that can spawn in the map.")]
+    [field: Tooltip("The max amount of Shishas that can spawn on the map.")]
     [field: Range(0, 500)]
     public int MaxAmount { get; private set; } = 20;
     #endregion

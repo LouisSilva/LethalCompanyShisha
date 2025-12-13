@@ -54,7 +54,6 @@ public class ShishaPlugin : BaseUnityPlugin
 
         LogVerbose("Creating Harmony instance...");
         _harmony = new Harmony(MyPluginInfo.PLUGIN_GUID);
-
         _harmony.PatchAll();
 
         if (!Config.ShishaEnabled)
