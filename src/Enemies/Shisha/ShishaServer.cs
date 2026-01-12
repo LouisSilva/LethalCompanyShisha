@@ -86,7 +86,7 @@ public class ShishaServer : StateManagedAI<ShishaServer.States, ShishaServer>
         if (!IsServer) return;
 
         SubscribeToNetworkEvents();
-        RegisterImperiumInsights();
+        // RegisterImperiumInsights();
         SeichiMapTypeIntegration.Instance.RegisterShisha(this);
 
         _numberOfAmbientAudioClips = GetComponent<ShishaClient>().ambientSfx.Length;
@@ -98,12 +98,12 @@ public class ShishaServer : StateManagedAI<ShishaServer.States, ShishaServer>
 
         if (ImperiumIntegration.IsLoaded && !_hasRegisteredImperiumInsights)
         {
-            Imperium.API.Visualization.InsightsFor<ShishaServer>()
-                .SetPersonalNameGenerator(entity => entity.Id)
-                .RegisterInsight("Behaviour State", entity => entity.CurrentState.GetStateType().ToString())
-                .RegisterInsight("Acceleration",
-                    entity => !isAgentNull ? $"{entity._adapter.Agent.acceleration:0.0}" : "0")
-                .RegisterInsight("Gender", entity => entity._blackboard.Gender.ToString());
+            // Imperium.API.Visualization.InsightsFor<ShishaServer>()
+            //     .SetPersonalNameGenerator(entity => entity.Id)
+            //     .RegisterInsight("Behaviour State", entity => entity.CurrentState.GetStateType().ToString())
+            //     .RegisterInsight("Acceleration",
+            //         entity => !isAgentNull ? $"{entity._adapter.Agent.acceleration:0.0}" : "0")
+            //     .RegisterInsight("Gender", entity => entity._blackboard.Gender.ToString());
         }
 
         _hasRegisteredImperiumInsights = true;
